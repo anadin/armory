@@ -4,7 +4,10 @@ import iron.object.Object;
 import iron.math.Mat4;
 import iron.math.Quat;
 import iron.math.Vec4;
+import iron.math.Rotator;
 import armory.trait.physics.RigidBody;
+
+using iron.math.MathStaticExtension;
 
 class RotateObjectNode extends LogicNode {
 
@@ -16,11 +19,15 @@ class RotateObjectNode extends LogicNode {
 
 	override function run() {
 		var object:Object = inputs[1].get();
-		var vec:Vec4 = inputs[2].get();
+		var rot:Rotator = inputs[2].get();
 
 		if (object == null) return;
 
-		q.fromEuler(vec.x, vec.y, vec.z);
+		rot = rot.clamp();
+		rot = rot.toRadians();
+
+		q.fromEuler(rot.pitch, rot.roll, rot.yaw);
+		// q.fromEuler(rot.pitch.toRadians(), rot.roll.toRadians(), rot.yaw.toRadians());
 
 		object.transform.rot.mult(q);
 		object.transform.buildMatrix();

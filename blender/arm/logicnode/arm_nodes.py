@@ -37,6 +37,23 @@ class ArmActionSocket(bpy.types.NodeSocket):
     def draw_color(self, context, node):
         return (0.8, 0.3, 0.3, 1)
 
+class ArmRotatorSocket(bpy.types.NodeSocket):
+    bl_idname = 'ArmNodeSocketRotator'
+    bl_label = 'Rotator Socket'
+    default_value = FloatVectorProperty(name="Rotator", default=[0, 0, 0])
+
+    def get_default_value(self):
+        if self.default_value not in bpy.data.objects:
+            return self.default_value
+        name = arm.utils.asset_name(bpy.data.actions[self.default_value])
+        return arm.utils.safestr(name)
+
+    def draw(self, context, layout, node, text):
+        layout.label(self.name)
+
+    def draw_color(self, context, node):
+        return (0.5, 0.37, 0.78, 1)
+
 class ArmObjectSocket(bpy.types.NodeSocket):
     bl_idname = 'ArmNodeSocketObject'
     bl_label = 'Object Socket'
@@ -166,6 +183,7 @@ def add_node(node_class, category):
     category_items[category].append(NodeItem(node_class.bl_idname))
 
 bpy.utils.register_class(ArmActionSocket)
+bpy.utils.register_class(ArmRotatorSocket)
 bpy.utils.register_class(ArmObjectSocket)
 bpy.utils.register_class(ArmNodeEyedropButton)
 bpy.utils.register_class(ArmAnimActionSocket)

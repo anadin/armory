@@ -157,6 +157,10 @@ def build_default_node(inp):
     if inp.bl_idname == 'ArmNodeSocketAnimAction':
         inp_name = 'new armory.logicnode.StringNode(this, "' + str(inp.get_default_value()) + '")'
         return inp_name
+    # if inp.type == 'ROTATOR':
+    if inp.bl_idname == 'ArmNodeSocketRotator':
+        inp_name = 'new armory.logicnode.RotatorNode(this, "' + str(inp.default_value[0]) + ', ' + str(inp.default_value[1]) + ', ' + str(inp.default_value[2]) + '")'
+        return inp_name
     if inp.type == 'VECTOR':
         inp_name = 'new armory.logicnode.VectorNode(this, ' + str(inp.default_value[0]) + ', ' + str(inp.default_value[1]) + ', ' + str(inp.default_value[2]) + ')'
     elif inp.type == 'RGBA':

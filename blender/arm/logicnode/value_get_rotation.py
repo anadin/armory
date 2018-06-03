@@ -11,6 +11,10 @@ class GetRotationNode(Node, ArmLogicTreeNode):
 
     def init(self, context):
         self.inputs.new('ArmNodeSocketObject', 'Object')
-        self.outputs.new('NodeSocketVector', 'Rotation')
+        # self.inputs.new('NodeSocketBool', 'Use Degrees')
+        # self.inputs[-1].default_value = True
+        # self.outputs.new('NodeSocketVector', 'Rotation')
+        self.outputs.new('ArmNodeSocketRotator', 'Rotator')
+
 
 add_node(GetRotationNode, category='Value')

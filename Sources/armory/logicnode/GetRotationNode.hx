@@ -4,6 +4,8 @@ import iron.object.Object;
 
 class GetRotationNode extends LogicNode {
 
+	// var r = new Rotator();
+
 	public function new(tree:LogicTree) {
 		super(tree);
 	}
@@ -13,6 +15,6 @@ class GetRotationNode extends LogicNode {
 
 		if (object == null) return null;
 
-		return object.transform.rot.getEuler();
+		return object.transform.rot.getRotator();
 	}
 }
