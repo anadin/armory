@@ -519,7 +519,7 @@ def make_forward_solid(con_mesh):
     frag.write('float metallic;')
     frag.write('float occlusion;')
     frag.write('float specular;')
-    cycles.parse(mat_state.nodes, con_mesh, vert, frag, geom, tesc, tese, parse_opacity=False, parse_displacement=False)
+    cycles.parse(mat_state.nodes, con_mesh, vert, frag, geom, tesc, tese, parse_opacity=False, parse_displacement=False, basecol_only=True)
 
     if con_mesh.is_elem('tex'):
         vert.add_out('vec2 texCoord')
@@ -576,17 +576,10 @@ def make_forward_base(con_mesh, parse_opacity=False):
     float dotNV = max(dot(n, vVec), 0.0);
 """)
 
-    if tese != None:
-        tese.add_out('vec3 eyeDir')
-        tese.add_uniform('vec3 eye', '_cameraPosition')
-        tese.write('eyeDir = eye - wposition;')
-    else:
-        vert.add_out('vec3 wposition')
-        vert.add_uniform('mat4 W', '_worldMatrix')
-        vert.write_attrib('wposition = vec4(W * spos).xyz;')
-        vert.add_out('vec3 eyeDir')
-        vert.add_uniform('vec3 eye', '_cameraPosition')
-        vert.write('eyeDir = eye - wposition;')
+    sh = tese if tese != None else vert
+    sh.add_out('vec3 eyeDir')
+    sh.add_uniform('vec3 eye', '_cameraPosition')
+    sh.write('eyeDir = eye - wposition;')
 
     frag.add_include('std/brdf.glsl')
     frag.add_include('std/math.glsl')

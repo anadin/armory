@@ -2058,6 +2058,8 @@ class ArmoryExporter:
             # scene_objects = self.scene.objects
             scene_objects = []
             for lay in self.scene.view_layers:
+                if lay.depsgraph == None:
+                    continue
                 scene_objects += lay.depsgraph.objects
         else:
             scene_objects = self.scene.objects
@@ -2620,6 +2622,8 @@ class ArmoryExporter:
     def add_rigidbody_constraint(self, o, rbc):
         rb1 = rbc.object1
         rb2 = rbc.object2
+        if rb1 == None or rb2 == None:
+            return
         ArmoryExporter.export_physics = True
         phys_pkg = 'bullet' if bpy.data.worlds['Arm'].arm_physics == 'Bullet' else 'oimo'
         breaking_threshold = rbc.breaking_threshold if rbc.use_breaking else 0
