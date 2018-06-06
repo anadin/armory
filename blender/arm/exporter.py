@@ -614,7 +614,7 @@ class ArmoryExporter:
         transform = bone.matrix_local.copy()
         parent_bone = bone.parent
         if parent_bone:
-            transform = parent_bone.matrix_local.inverted() * transform
+            transform = parent_bone.matrix_local.inverted_safe() * transform
 
         pose_bone = armature.pose.bones.get(bone.name)
         if pose_bone:
@@ -951,7 +951,7 @@ class ArmoryExporter:
             if type == NodeTypeCamera and bpy.data.worlds['Arm'].arm_play_camera != 'Scene' and self.scene.camera != None and bobject.name == self.scene.camera.name:
                 viewport_matrix = self.get_viewport_view_matrix()
                 if viewport_matrix != None:
-                    o['transform']['values'] = self.write_matrix(viewport_matrix.inverted())
+                    o['transform']['values'] = self.write_matrix(viewport_matrix.inverted_safe())
                     # Do not apply parent matrix
                     o['local_transform_only'] = True
 
@@ -1070,11 +1070,11 @@ class ArmoryExporter:
         oskin['transformsI'] = []
         if rpdat.arm_skin == 'CPU':
             for i in range(bone_count):
-                skeletonI = (armature.matrix_world * bone_array[i].matrix_local).inverted()
+                skeletonI = (armature.matrix_world * bone_array[i].matrix_local).inverted_safe()
                 oskin['transformsI'].append(self.write_matrix(skeletonI))
         else:
             for i in range(bone_count):
-                skeletonI = (armature.matrix_world * bone_array[i].matrix_local).inverted()
+                skeletonI = (armature.matrix_world * bone_array[i].matrix_local).inverted_safe()
                 skeletonI = skeletonI * bobject.matrix_world
                 oskin['transformsI'].append(self.write_matrix(skeletonI))
 
@@ -1179,43 +1179,45 @@ class ArmoryExporter:
     #     oskin['bone_index_array'] = bone_index_array
     #     oskin['bone_weight_array'] = bone_weight_array
 
-    def calc_tangents(self, posa, nora, uva, ia):
-        triangle_count = int(len(ia) / 3)
+    def calc_tangents(self, posa, nora, uva, ias):
         vertex_count = int(len(posa) / 3)
         tangents = [0] * vertex_count * 3
         # bitangents = [0] * vertex_count * 3
-        for i in range(0, triangle_count):
-            i0 = ia[i * 3 + 0]
-            i1 = ia[i * 3 + 1]
-            i2 = ia[i * 3 + 2]
-            # TODO: Slow
-            v0 = Vector((posa[i0 * 3 + 0], posa[i0 * 3 + 1], posa[i0 * 3 + 2]))
-            v1 = Vector((posa[i1 * 3 + 0], posa[i1 * 3 + 1], posa[i1 * 3 + 2]))
-            v2 = Vector((posa[i2 * 3 + 0], posa[i2 * 3 + 1], posa[i2 * 3 + 2]))
-            uv0 = Vector((uva[i0 * 2 + 0], uva[i0 * 2 + 1]))
-            uv1 = Vector((uva[i1 * 2 + 0], uva[i1 * 2 + 1]))
-            uv2 = Vector((uva[i2 * 2 + 0], uva[i2 * 2 + 1]))
+        for ar in ias:
+            ia = ar['values']
+            triangle_count = int(len(ia) / 3)
+            for i in range(0, triangle_count):
+                i0 = ia[i * 3 + 0]
+                i1 = ia[i * 3 + 1]
+                i2 = ia[i * 3 + 2]
+                # TODO: Slow
+                v0 = Vector((posa[i0 * 3 + 0], posa[i0 * 3 + 1], posa[i0 * 3 + 2]))
+                v1 = Vector((posa[i1 * 3 + 0], posa[i1 * 3 + 1], posa[i1 * 3 + 2]))
+                v2 = Vector((posa[i2 * 3 + 0], posa[i2 * 3 + 1], posa[i2 * 3 + 2]))
+                uv0 = Vector((uva[i0 * 2 + 0], uva[i0 * 2 + 1]))
+                uv1 = Vector((uva[i1 * 2 + 0], uva[i1 * 2 + 1]))
+                uv2 = Vector((uva[i2 * 2 + 0], uva[i2 * 2 + 1]))
 
-            tangent = ArmoryExporter.calc_tangent(v0, v1, v2, uv0, uv1, uv2)
+                tangent = ArmoryExporter.calc_tangent(v0, v1, v2, uv0, uv1, uv2)
 
-            tangents[i0 * 3 + 0] += tangent.x
-            tangents[i0 * 3 + 1] += tangent.y
-            tangents[i0 * 3 + 2] += tangent.z
-            tangents[i1 * 3 + 0] += tangent.x
-            tangents[i1 * 3 + 1] += tangent.y
-            tangents[i1 * 3 + 2] += tangent.z
-            tangents[i2 * 3 + 0] += tangent.x
-            tangents[i2 * 3 + 1] += tangent.y
-            tangents[i2 * 3 + 2] += tangent.z
-            # bitangents[i0 * 3 + 0] += bitangent.x
-            # bitangents[i0 * 3 + 1] += bitangent.y
-            # bitangents[i0 * 3 + 2] += bitangent.z
-            # bitangents[i1 * 3 + 0] += bitangent.x
-            # bitangents[i1 * 3 + 1] += bitangent.y
-            # bitangents[i1 * 3 + 2] += bitangent.z
-            # bitangents[i2 * 3 + 0] += bitangent.x
-            # bitangents[i2 * 3 + 1] += bitangent.y
-            # bitangents[i2 * 3 + 2] += bitangent.z
+                tangents[i0 * 3 + 0] += tangent.x
+                tangents[i0 * 3 + 1] += tangent.y
+                tangents[i0 * 3 + 2] += tangent.z
+                tangents[i1 * 3 + 0] += tangent.x
+                tangents[i1 * 3 + 1] += tangent.y
+                tangents[i1 * 3 + 2] += tangent.z
+                tangents[i2 * 3 + 0] += tangent.x
+                tangents[i2 * 3 + 1] += tangent.y
+                tangents[i2 * 3 + 2] += tangent.z
+                # bitangents[i0 * 3 + 0] += bitangent.x
+                # bitangents[i0 * 3 + 1] += bitangent.y
+                # bitangents[i0 * 3 + 2] += bitangent.z
+                # bitangents[i1 * 3 + 0] += bitangent.x
+                # bitangents[i1 * 3 + 1] += bitangent.y
+                # bitangents[i1 * 3 + 2] += bitangent.z
+                # bitangents[i2 * 3 + 0] += bitangent.x
+                # bitangents[i2 * 3 + 1] += bitangent.y
+                # bitangents[i2 * 3 + 2] += bitangent.z
 
         # Orthogonalize
         for i in range(0, vertex_count):
@@ -1396,7 +1398,7 @@ class ArmoryExporter:
 
         # Make tangents
         if has_tang:
-            tanga_vals = self.calc_tangents(pa['values'], na['values'], ta['values'], o['index_arrays'][0]['values'])
+            tanga_vals = self.calc_tangents(pa['values'], na['values'], ta['values'], o['index_arrays'])
             tanga = self.make_va('tang', 3, tanga_vals)
             o['vertex_arrays'].append(tanga)
 
@@ -2183,7 +2185,7 @@ class ArmoryExporter:
             o['transform'] = {}
             viewport_matrix = self.get_viewport_view_matrix()
             if viewport_matrix != None:
-                o['transform']['values'] = self.write_matrix(viewport_matrix.inverted())
+                o['transform']['values'] = self.write_matrix(viewport_matrix.inverted_safe())
                 o['local_transform_only'] = True
             else:
                 o['transform']['values'] = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]
