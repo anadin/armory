@@ -21,7 +21,7 @@ class RotateObjectNode extends LogicNode {
 		var object:Object = inputs[1].get();
 		var rot:Rotator = inputs[2].get();
 
-		if (object == null) return;
+		if (object == null || vec == null) return;
 
 		rot = rot.clamp();
 		rot = rot.toRadians();
