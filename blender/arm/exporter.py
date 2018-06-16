@@ -946,6 +946,8 @@ class ArmoryExporter:
                 if not bone.use_relative_parent:
                     bone_translation = bone.tail - bone.head
                     o['parent_bone_tail'] = [bone_translation[0], bone_translation[1], bone_translation[2]]
+                    bone_translation_y = Vector((0, bone.length, 0)) + bone.head
+                    o['parent_bone_tail_y'] = [bone_translation_y[0], bone_translation_y[1], bone_translation_y[2]]
 
             # Viewport Camera - overwrite active camera matrix with viewport matrix
             if type == NodeTypeCamera and bpy.data.worlds['Arm'].arm_play_camera != 'Scene' and self.scene.camera != None and bobject.name == self.scene.camera.name:
@@ -2513,10 +2515,18 @@ class ArmoryExporter:
                     group_name = arm.utils.safesrc(t.nodes_name_prop[0].upper() + t.nodes_name_prop[1:])
                     x['class_name'] = arm.utils.safestr(bpy.data.worlds['Arm'].arm_project_package) + '.node.' + group_name
                 elif t.type_prop == 'WebAssembly':
+                    wpath = arm.utils.get_fp() + '/Bundled/' + t.webassembly_prop + '.wasm'
+                    if not os.path.exists(wpath):
+                        log.warn('Wasm "' + t.webassembly_prop + '" not found, skipping')
+                        continue
                     x['type'] = 'Script'
                     x['class_name'] = 'armory.trait.internal.WasmScript'
                     x['parameters'] = ["'" + t.webassembly_prop + "'"]
                 elif t.type_prop == 'UI Canvas':
+                    cpath = arm.utils.get_fp() + '/Bundled/canvas/' + t.canvas_name_prop + '.json'
+                    if not os.path.exists(cpath):
+                        log.warn('Canvas "' + t.canvas_name_prop + '" not found, skipping')
+                        continue
                     ArmoryExporter.export_ui = True
                     x['type'] = 'Script'
                     x['class_name'] = 'armory.trait.internal.CanvasScript'
