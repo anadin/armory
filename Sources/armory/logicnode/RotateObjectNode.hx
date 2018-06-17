@@ -11,7 +11,7 @@ using iron.math.MathStaticExtension;
 
 class RotateObjectNode extends LogicNode {
 
-	var q = new Quat();
+	var quat = new Quat();
 
 	public function new(tree:LogicTree) {
 		super(tree);
@@ -21,15 +21,15 @@ class RotateObjectNode extends LogicNode {
 		var object:Object = inputs[1].get();
 		var rot:Rotator = inputs[2].get();
 
-		if (object == null || vec == null) return;
+		if (object == null || quat == null) return;
 
 		rot = rot.clamp();
 		rot = rot.toRadians();
 
-		q.fromEuler(rot.pitch, rot.roll, rot.yaw);
-		// q.fromEuler(rot.pitch.toRadians(), rot.roll.toRadians(), rot.yaw.toRadians());
+		quat.fromEuler(rot.pitch, rot.roll, rot.yaw);
+		// quat.fromEuler(rot.pitch.toRadians(), rot.roll.toRadians(), rot.yaw.toRadians());
 
-		object.transform.rot.mult(q);
+		object.transform.rot.mult(quat);
 		object.transform.buildMatrix();
 
 		#if arm_physics
