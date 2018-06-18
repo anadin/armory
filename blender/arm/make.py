@@ -366,20 +366,9 @@ def stop_project():
         state.playproc = None
 
 def watch_play():
-    if state.playproc == None:
-        return
-    line = b''
-    while state.playproc != None and state.playproc.poll() == None:
-        char = state.playproc.stderr.read(1) # Read immediately one by one
-        if char == b'\n':
-            msg = str(line).split('"', 1) # Extract message
-            if len(msg) > 1:
-                trace = msg[1].rsplit('"', 1)[0]
-                log.krom_trace(trace)
-            line = b''
-        else:
-            line += char
-    state.playproc = None
+    if state.playproc != None:
+        state.playproc.wait()
+        state.playproc = None
     log.clear()
 
 def watch_compile(mode):
@@ -469,7 +458,7 @@ def play(in_viewport):
     if wrd.arm_recompile:
         mode = 'play'
         if state.target == 'native':
-            state.compileproc = compile(target_name='--run')
+            state.compileproc = compile(target_name='--compile')
         elif state.target == 'krom':
             if in_viewport:
                 mode = 'play_viewport'
@@ -500,13 +489,31 @@ def on_compiled(mode): # build, play, play_viewport, publish
             krom_location, krom_path = arm.utils.krom_paths(bin_ext=bin_ext)
             os.chdir(krom_location)
             args = [krom_path, arm.utils.get_fp_build() + '/debug/krom', arm.utils.get_fp_build() + '/debug/krom-resources']
-            
-            if arm.utils.get_os() == 'mac': # TODO: Krom sound freezes on MacOS
+            if arm.utils.get_os() == 'win':
+                args.append('--consolepid')
+                args.append(str(os.getpid()))
+            elif arm.utils.get_os() == 'mac': # TODO: Krom sound freezes on MacOS
                 args.append('--nosound')
-            args.append('--stdout')
-            args.append(arm.utils.get_fp_build() + '/krom.txt')
+            # args.append('--stdout')
+            # args.append(arm.utils.get_fp_build() + '/krom.txt')
             state.playproc = subprocess.Popen(args, stderr=subprocess.PIPE)
             watch_play()
+        elif wrd.arm_play_runtime == 'Native':
+            if arm.utils.get_os() == 'win':
+                bin_location = arm.utils.get_fp_build() + '/windows'
+            elif arm.utils.get_os() == 'linux':
+                bin_location = arm.utils.get_fp_build() + '/linux'
+            else:
+                bin_location = arm.utils.get_fp_build() + '/osx'
+            os.chdir(bin_location)
+            if arm.utils.get_os() == 'win':
+                state.playproc = subprocess.Popen(bin_location + '/' + arm.utils.safestr(wrd.arm_project_name) + '.exe', stderr=subprocess.PIPE)
+            elif arm.utils.get_os() == 'linux':
+                state.playproc = subprocess.Popen(bin_location + '/' + arm.utils.safestr(wrd.arm_project_name), stderr=subprocess.PIPE)
+            else:
+                state.playproc = subprocess.Popen(bin_location + '/' + arm.utils.safestr(wrd.arm_project_name) + '.app/Contents/MacOS/' + arm.utils.safestr(wrd.arm_project_name), stderr=subprocess.PIPE)
+            watch_play()
+
     elif mode == 'publish':
         sdk_path = arm.utils.get_sdk_path()
         target_name = arm.utils.get_kha_target(state.target)
