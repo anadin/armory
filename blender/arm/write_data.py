@@ -126,7 +126,7 @@ project.addSources('Sources');
         if enable_dce:
             f.write("project.addParameter('-dce full');\n")
 
-        if is_viewport:
+        if is_viewport or wrd.arm_play_console:
             import_traits.append('armory.trait.internal.Bridge')
 
         import_traits = list(set(import_traits))
@@ -321,6 +321,7 @@ class Main {
             f.write("""
         iron.object.LampObject.cascadeCount = """ + str(rpdat.rp_shadowmap_cascades) + """;
         iron.object.LampObject.cascadeSplitFactor = """ + str(rpdat.arm_shadowmap_split) + """;
+        iron.object.LampObject.cascadeBounds = """ + str(rpdat.arm_shadowmap_bounds) + """;
 """)
         f.write("""
         state = 1;
