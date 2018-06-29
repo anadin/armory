@@ -84,13 +84,21 @@ def init_properties():
     bpy.types.World.arm_project_root = StringProperty(name="Root", description="Set root folder for linked assets", default="", subtype="FILE_PATH", update=invalidate_compiler_cache)
     bpy.types.World.arm_physics = EnumProperty(
         items = [('Disabled', 'Disabled', 'Disabled'), 
-                 ('Bullet', 'Bullet', 'Bullet'),
+                 ('Auto', 'Auto', 'Auto'),
+                 ('Enabled', 'Enabled', 'Enabled')],
+        name = "Physics", default='Auto')
+    bpy.types.World.arm_physics_engine = EnumProperty(
+        items = [('Bullet', 'Bullet', 'Bullet'),
                  ('Oimo', 'Oimo', 'Oimo')],
-        name = "Physics", default='Bullet')
+        name = "Physics Engine", default='Bullet')
     bpy.types.World.arm_navigation = EnumProperty(
         items = [('Disabled', 'Disabled', 'Disabled'), 
-                 ('Recast', 'Recast', 'Recast')],
-        name = "Navigation", default='Recast')
+                 ('Auto', 'Auto', 'Auto'),
+                 ('Enabled', 'Enabled', 'Enabled')],
+        name = "Navigation", default='Auto')
+    bpy.types.World.arm_navigation_engine = EnumProperty(
+        items = [('Recast', 'Recast', 'Recast')],
+        name = "Navigation Engine", default='Recast')
     bpy.types.World.arm_ui = EnumProperty(
         items = [('Disabled', 'Disabled', 'Disabled'), 
                  ('Enabled', 'Enabled', 'Enabled'),
@@ -131,7 +139,7 @@ def init_properties():
                ('Viewport', 'Viewport', 'Viewport'),
                # ('Viewport Shared', 'Shared', 'Viewport Shared')
                ],
-        name="Camera", description="Viewport camera", default='Scene')
+        name="Camera", description="Viewport camera", default='Scene', update=invalidate_compiler_cache)
     bpy.types.World.arm_play_console = BoolProperty(name="Debug Console", description="Show inspector in player and enable debug draw", default=False, update=assets.invalidate_shader_cache)
     bpy.types.World.arm_play_runtime = EnumProperty(
         items=[('Browser', 'Browser', 'Browser'),
@@ -296,6 +304,7 @@ def init_properties():
     bpy.types.Material.lock_cache = BoolProperty(name="Lock Material Cache", description="Prevent is_cached from updating", default=False)
     bpy.types.Node.arm_material_param = BoolProperty(name="Parameter", description="Control this node from script", default=False)
     bpy.types.Node.arm_logic_id = StringProperty(name="ID", description="Nodes with equal identifier will share data", default='')
+    bpy.types.Node.arm_watch = BoolProperty(name="Watch", description="Watch value of this node in debug console", default=False)
     # Particles
     bpy.types.ParticleSettings.arm_gpu_sim = BoolProperty(name="GPU Simulation", description="Calculate particle simulation on GPU", default=False, update=assets.invalidate_shader_cache)
     bpy.types.ParticleSettings.arm_count_mult = FloatProperty(name="Multiply Count", description="Multiply particle count when rendering in Armory", default=1.0)

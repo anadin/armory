@@ -10,7 +10,10 @@ import zui.Zui;
 import zui.Id;
 #end
 
+#if arm_debug
 @:access(zui.Zui)
+@:access(armory.logicnode.LogicNode)
+#end
 class DebugConsole extends Trait {
 
 #if (!arm_debug)
@@ -46,6 +49,7 @@ class DebugConsole extends Trait {
 	static var row4 = [1/4, 1/4, 1/4, 1/4];
 
 	public static var f = 1.0;
+	public static var watchNodes:Array<armory.logicnode.LogicNode> = [];
 
 	public function new() {
 		super();
@@ -139,7 +143,9 @@ class DebugConsole extends Trait {
 							ui.g.color = 0xffffffff;
 						}
 						if (o.children.length > 0) {
-							b = ui.panel(h.nest(i, {selected: true}), o.name, 0, true);
+							ui.row([1/13, 12/13]);
+							b = ui.panel(h.nest(i, {selected: true}), "", 0, true);
+							ui.text(o.name);
 						}
 						else {
 							ui._x += 18; // Sign offset
@@ -248,6 +254,13 @@ class DebugConsole extends Trait {
 						if (ui.changed) scale.z = f;
 
 						selectedObject.transform.dirty = true;
+
+						if (selectedObject.traits.length > 0) {
+							ui.text("Traits:");
+							for (t in selectedObject.traits) {
+								ui.text(Type.getClassName(Type.getClass(t)));
+							}
+						}
 
 						if (selectedObject.name == "Scene") {
 							selectedType = "(Scene)";
@@ -397,7 +410,7 @@ class DebugConsole extends Trait {
 					ui.indent();
 					var t = ui.textInput(Id.handle());
 					if (ui.button("Run")) {
-						try { js.Lib.eval(t); }
+						try { trace("> " + t); js.Lib.eval(t); }
 						catch(e:Dynamic) { trace(e); }
 					}
 					ui.unindent();
@@ -411,6 +424,12 @@ class DebugConsole extends Trait {
 					}
 					for (t in lastTraces) ui.text(t);
 					ui.unindent();
+				}
+			}
+
+			if (watchNodes.length > 0 && ui.tab(htab, "Watch")) {
+				for (n in watchNodes) {
+					ui.text(n.tree.object.name + ': ' +  n.name + ' = ' + n.get(0));
 				}
 			}
 
