@@ -9,7 +9,7 @@ import arm.assets as assets
 import arm.make_state as state
 
 def add_armory_library(sdk_path, name):
-    return ('project.addLibrary("' + sdk_path + '/' + name + '");\n').replace('\\', '/')
+    return ('project.addLibrary("' + sdk_path + '/' + name + '");\n').replace('\\', '/').replace('//', '/')
 
 def add_assets(path, quality=1.0, use_data_dir=False):
     if not bpy.data.worlds['Arm'].arm_minimize and path.endswith('.arm'):
@@ -68,7 +68,7 @@ project.addSources('Sources');
             libs = os.listdir('Libraries')
             for lib in libs:
                 if os.path.isdir('Libraries/' + lib):
-                    f.write('project.addLibrary("{0}");\n'.format(lib))
+                    f.write('project.addLibrary("{0}");\n'.format(lib.replace('//', '/')))
         
         # Subprojects, merge this with libraries
         if os.path.exists('Subprojects'):
@@ -88,7 +88,7 @@ project.addSources('Sources');
                     f.write(add_armory_library(sdk_path + '/lib/', 'haxebullet'))
                 if state.target.startswith('krom') or state.target == 'html5' or state.target == 'node':
                     ammojs_path = sdk_path + '/lib/haxebullet/js/ammo/ammo.js'
-                    ammojs_path = ammojs_path.replace('\\', '/')
+                    ammojs_path = ammojs_path.replace('\\', '/').replace('//', '/')
                     f.write(add_assets(ammojs_path))
                     # haxe.macro.Compiler.includeFile(ammojs_path)
             elif wrd.arm_physics_engine == 'Oimo':
@@ -102,7 +102,7 @@ project.addSources('Sources');
                 f.write(add_armory_library(sdk_path + '/lib/', 'haxerecast'))
             if state.target.startswith('krom') or state.target == 'html5':
                 recastjs_path = sdk_path + '/lib/haxerecast/js/recast/recast.js'
-                recastjs_path = recastjs_path.replace('\\', '/')
+                recastjs_path = recastjs_path.replace('\\', '/').replace('//', '/')
                 f.write(add_assets(recastjs_path))
 
         if is_publish:
@@ -143,7 +143,7 @@ project.addSources('Sources');
 
         shader_references = sorted(list(set(assets.shaders)))
         for ref in shader_references:
-            ref = ref.replace('\\', '/')
+            ref = ref.replace('\\', '/').replace('//', '/')
             f.write("project.addShaders('" + ref + "'")
             # noprocessing for passthrough geom shader
             # if ref.endswith('voxel.geom.glsl'):
@@ -151,18 +151,18 @@ project.addSources('Sources');
             f.write(");\n")
 
         # Move assets for published game to /data folder
-        use_data_dir = is_publish and (state.target.startswith('krom') or state.target == 'windows' or state.target == 'linux')
+        use_data_dir = is_publish and (state.target == 'krom-windows' or state.target == 'krom-linux' or state.target == 'windows' or state.target == 'linux')
         if use_data_dir:
             assets.add_khafile_def('arm_data_dir')
 
         shader_data_references = sorted(list(set(assets.shader_datas)))
         for ref in shader_data_references:
-            ref = ref.replace('\\', '/')
+            ref = ref.replace('\\', '/').replace('//', '/')
             f.write(add_assets(ref, use_data_dir=use_data_dir))
 
         asset_references = sorted(list(set(assets.assets)))
         for ref in asset_references:
-            ref = ref.replace('\\', '/')
+            ref = ref.replace('\\', '/').replace('//', '/')
             quality = 1.0
             s = ref.lower()
             if s.endswith('.wav'):
@@ -185,6 +185,7 @@ project.addSources('Sources');
             if not os.path.exists('Libraries/zui'):
                 f.write(add_armory_library(sdk_path, 'lib/zui'))
             p = sdk_path + '/armory/Assets/droid_sans.ttf'
+            p = p.replace('//', '/')
             f.write(add_assets(p.replace('\\', '/'), use_data_dir=use_data_dir))
             assets.add_khafile_def('arm_ui')
 
@@ -360,6 +361,9 @@ class Main {
         if (config.window_msaa == null) config.window_msaa = """ + str(int(rpdat.arm_samples_per_pixel)) + """;
         if (config.window_vsync == null) config.window_vsync = """ + (('true' if wrd.arm_vsync else 'false')) + """;
         armory.object.Uniforms.register();
+        #if (kha_version >= 1807)
+        var windowMode = kha.WindowMode.Window;
+        #else
         var windowMode = config.window_mode == 0 ? kha.WindowMode.Window : (config.window_mode == 1 ? kha.WindowMode.BorderlessWindow : kha.WindowMode.Fullscreen);
         if (windowMode == kha.WindowMode.Fullscreen) { windowMode = kha.WindowMode.BorderlessWindow; config.window_w = kha.Display.width(0); config.window_h = kha.Display.height(0); }
 """)
@@ -369,6 +373,7 @@ class Main {
         else { config.window_w = Std.int(Math.min(config.window_w, kha.Display.width(0))); config.window_h = Std.int(Math.min(config.window_h, kha.Display.height(0))); }
 """)
         f.write("""
+        #end // kha_version
         kha.System.init({title: projectName, width: config.window_w, height: config.window_h, samplesPerPixel: config.window_msaa, vSync: config.window_vsync, windowMode: windowMode, resizable: config.window_resizable, maximizable: config.window_maximizable, minimizable: config.window_minimizable}, function() {
             iron.App.init(function() {
 """)
