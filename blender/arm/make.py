@@ -126,17 +126,24 @@ def export_data(fp, sdk_path):
         export_ui = True
 
     modules = []
+    if wrd.arm_audio == 'Enabled':
+        modules.append('audio')
     if export_physics:
         modules.append('physics')
     if export_navigation:
         modules.append('navigation')
     if export_ui:
         modules.append('ui')
+    if wrd.arm_hscript == 'Enabled':
+        modules.append('hscript')
+    if wrd.arm_formatlib == 'Enabled':
+        modules.append('format')
     print('Exported modules: ' + str(modules))
 
     defs = arm.utils.def_strings_to_array(wrd.world_defs)
     cdefs = arm.utils.def_strings_to_array(wrd.compo_defs)
     print('Shader flags: ' + str(defs))
+    # print('Khafile flags: ' + str(assets.khafile_defs))
 
     # Write compiled.glsl
     shaders_path = build_dir + '/compiled/Shaders'
@@ -222,7 +229,7 @@ def compile(assets_only=False):
     if arm.utils.get_legacy_shaders() and not state.is_viewport:
         cmd.append('--shaderversion')
         cmd.append('110')
-    elif 'android' in state.target or 'ios' in state.target:
+    elif 'android' in state.target or 'ios' in state.target or 'html5' in state.target:
         pass # Use defaults
     else:
         cmd.append('--shaderversion')
@@ -231,6 +238,14 @@ def compile(assets_only=False):
     if '_VR' in wrd.world_defs:
         cmd.append('--vr')
         cmd.append('webvr')
+
+    if arm.utils.get_rp().rp_renderer == 'Pathtracer':
+        cmd.append('--raytrace')
+        cmd.append('dxr')
+        dxc_path = fp + '/HlslShaders/fxc.exe'
+        subprocess.Popen([dxc_path, '-Zpr', '-Fo', fp + '/Bundled/pt_raygeneration.o', '-T', 'lib_6_1', fp + '/HlslShaders/pt_raygeneration.hlsl'])
+        subprocess.Popen([dxc_path, '-Zpr', '-Fo', fp + '/Bundled/pt_closesthit.o', '-T', 'lib_6_1', fp + '/HlslShaders/pt_closesthit.hlsl'])
+        subprocess.Popen([dxc_path, '-Zpr', '-Fo', fp + '/Bundled/pt_miss.o', '-T', 'lib_6_1', fp + '/HlslShaders/pt_miss.hlsl'])
 
     cmd.append('--to')
     if (kha_target_name == 'krom' and not state.is_viewport and not state.is_publish) or (kha_target_name == 'html5' and not state.is_publish):
@@ -248,6 +263,7 @@ def compile(assets_only=False):
         cmd.append('--noproject')
 
     print("Running: ", cmd)
+    print("Using project from " + arm.utils.get_fp())
     state.proc_build = run_proc(cmd, build_done)
 
 def build_viewport():

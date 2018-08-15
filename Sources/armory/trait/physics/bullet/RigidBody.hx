@@ -3,12 +3,11 @@ package armory.trait.physics.bullet;
 #if arm_bullet
 
 import haxebullet.Bullet;
-import iron.Trait;
 import iron.math.Vec4;
 import iron.object.Transform;
 import iron.object.MeshObject;
 
-class RigidBody extends Trait {
+class RigidBody extends iron.Trait {
 
 	var shape:Shape;
 	var _motionState:BtMotionStatePointer;
@@ -103,9 +102,12 @@ class RigidBody extends Trait {
 			_shape = BtSphereShape.create(withMargin(transform.dim.x / 2));
 		}
 		else if (shape == Shape.ConvexHull || (shape == Shape.Mesh && mass > 0)) {
+			if (shape == Shape.Mesh && mass > 0) {
+				trace("Armory Warning: object " + object.name + " - dynamic mesh shape not yet implemented, using convex hull instead");
+			}
 			_shapeConvex = BtConvexHullShape.create();
 			isConvex = true;
-			addPointsToConvexHull(_shapeConvex, transform.scale, collisionMargin);
+			fillConvexHull(_shapeConvex, transform.scale, collisionMargin);
 		}
 		else if (shape == Shape.Cone) {
 			_shape = BtConeShapeZ.create(
@@ -125,6 +127,7 @@ class RigidBody extends Trait {
 				withMargin(transform.dim.z - r * 2)); // Height between 2 sphere centers
 		}
 		else if (shape == Shape.Mesh || shape == Shape.Terrain) { // Static
+			// mass > 0 ? btGImpactMeshShape
 			var meshInterface = BtTriangleMesh.create(true, true);
 			fillTriangleMesh(meshInterface, transform.scale);
 			_shape = BtBvhTriangleMeshShape.create(meshInterface, true, true);
@@ -326,7 +329,7 @@ class RigidBody extends Trait {
 		physics.world.updateSingleAabb(body);
 	}
 
-	function addPointsToConvexHull(shape:BtConvexHullShapePointer, scale:Vec4, margin:Float) {
+	function fillConvexHull(shape:BtConvexHullShapePointer, scale:Vec4, margin:Float) {
 		var positions = cast(object, MeshObject).data.geom.positions;
 
 		var sx = scale.x * (1.0 - margin);

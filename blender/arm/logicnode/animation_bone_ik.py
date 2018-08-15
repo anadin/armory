@@ -3,16 +3,17 @@ from bpy.props import *
 from bpy.types import Node, NodeSocket
 from arm.logicnode.arm_nodes import *
 
-class SendEventNode(Node, ArmLogicTreeNode):
-    '''Send event node'''
-    bl_idname = 'LNSendEventNode'
-    bl_label = 'Send Event'
-    bl_icon = 'CURVE_PATH'
-    
+class BoneIKNode(Node, ArmLogicTreeNode):
+    '''Bone Inverse Kinematics node'''
+    bl_idname = 'LNBoneIKNode'
+    bl_label = 'Bone IK'
+    bl_icon = 'GAME'
+
     def init(self, context):
         self.inputs.new('ArmNodeSocketAction', 'In')
-        self.inputs.new('NodeSocketString', 'Event')
         self.inputs.new('ArmNodeSocketObject', 'Object')
+        self.inputs.new('NodeSocketString', 'Bone')
+        self.inputs.new('NodeSocketVector', 'Goal')
         self.outputs.new('ArmNodeSocketAction', 'Out')
 
-add_node(SendEventNode, category='Action')
+add_node(BoneIKNode, category='Animation')

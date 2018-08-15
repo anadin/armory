@@ -1,5 +1,6 @@
 import bpy
 import webbrowser
+import os
 from bpy.types import Menu, Panel, UIList
 from bpy.props import *
 import arm.utils
@@ -151,7 +152,7 @@ class DataPropsPanel(bpy.types.Panel):
             # if obj.type == 'MESH':
                 # layout.prop(obj.data, 'arm_sdfgen')
             layout.operator("arm.invalidate_cache")
-        elif obj.type == 'LAMP':
+        elif obj.type == 'LIGHT' or obj.type == 'LAMP': # TODO: LAMP is deprecated
             row = layout.row(align=True)
             col = row.column()
             col.prop(obj.data, 'arm_clip_start')
@@ -233,7 +234,10 @@ class MaterialPropsPanel(bpy.types.Panel):
         row = layout.row()
         column = row.column()
         column.prop(mat, 'arm_cast_shadow')
-        column.prop(mat, 'arm_receive_shadow')
+        columnb = column.column()
+        wrd = bpy.data.worlds['Arm']
+        columnb.enabled = len(wrd.arm_rplist) > 0 and arm.utils.get_rp().rp_renderer == 'Forward'
+        columnb.prop(mat, 'arm_receive_shadow')
         column.separator()
         column.prop(mat, 'arm_two_sided')
         columnb = column.column()
@@ -255,10 +259,10 @@ class MaterialPropsPanel(bpy.types.Panel):
 
         row = layout.row()
         col = row.column()
-        col.label('Custom Material:')
+        col.label('Custom Material')
         col.prop(mat, 'arm_custom_material', text="")
         col = row.column()
-        col.label('Skip Context:')
+        col.label('Skip Context')
         col.prop(mat, 'arm_skip_context', text="")
 
         row = layout.row()
@@ -271,9 +275,17 @@ class MaterialPropsPanel(bpy.types.Panel):
         col = row.column()
         col.label('Billboard')
         col.prop(mat, 'arm_billboard', text="")
-        row = layout.row()
-        row.prop(mat, 'arm_tilesheet_mat')
-        row.prop(mat, 'arm_blending')
+        col.prop(mat, 'arm_tilesheet_mat')
+
+        layout.prop(mat, 'arm_blending')
+        col = layout.column()
+        col.enabled = mat.arm_blending
+        col.prop(mat, 'arm_blending_source')
+        col.prop(mat, 'arm_blending_destination')
+        col.prop(mat, 'arm_blending_operation')
+        col.prop(mat, 'arm_blending_source_alpha')
+        col.prop(mat, 'arm_blending_destination_alpha')
+        col.prop(mat, 'arm_blending_operation_alpha')
 
         layout.operator("arm.invalidate_material_cache")
 
@@ -612,6 +624,10 @@ class ArmoryKodeStudioButton(bpy.types.Operator):
     def execute(self, context):
         if not arm.utils.check_saved(self):
             return {"CANCELLED"}
+
+        if bpy.data.worlds['Arm'].arm_play_runtime != 'Browser' or not os.path.exists(arm.utils.get_fp() + "/khafile.js"):
+            print('Generating HTML5 project for Kode Studio')
+            make.build('html5')
 
         arm.utils.kode_studio()
         return{'FINISHED'}
@@ -1085,6 +1101,8 @@ class ArmLodPanel(bpy.types.Panel):
             row = layout.row()
             row.prop(item, "screen_size_prop")
 
+        layout.prop(mdata, "arm_lod_material")
+
         # Auto lod for meshes
         if obj.type == 'MESH':
             layout.separator()
@@ -1094,7 +1112,7 @@ class ArmLodPanel(bpy.types.Panel):
             row.prop(wrd, 'arm_lod_gen_levels')
             row.prop(wrd, 'arm_lod_gen_ratio')
 
-        layout.prop(mdata, "arm_lod_material")
+        
 
 class ArmTilesheetPanel(bpy.types.Panel):
     bl_label = "Armory Tilesheet"

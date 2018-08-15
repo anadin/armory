@@ -333,6 +333,7 @@ class ArmRPListItem(bpy.types.PropertyGroup):
         items=[('Forward', 'Forward', 'Forward'),
                ('Deferred', 'Deferred', 'Deferred'),
                # ('Deferred Plus', 'Deferred Plus', 'Deferred Plus'),
+               # ('Pathtracer', 'Pathtracer', 'Pathtracer'),
                ],
         name="Renderer", description="Renderer type", default='Deferred', update=update_renderpath)
     rp_depthprepass = BoolProperty(name="Depth Prepass", description="Depth Prepass for mesh context", default=True, update=update_renderpath)
@@ -482,8 +483,8 @@ class ArmRPListItem(bpy.types.PropertyGroup):
                ('Vertex', 'Vertex', 'Vertex'),
                ('Tessellation', 'Tessellation', 'Tessellation')],
         name="Displacement", description="Enable material displacement", default='Vertex', update=assets.invalidate_shader_cache)
-    arm_tess_mesh_inner = IntProperty(name="Inner", description="Inner tessellation level", default=14)
-    arm_tess_mesh_outer = IntProperty(name="Outer", description="Outer tessellation level", default=14)
+    arm_tess_mesh_inner = IntProperty(name="Inner", description="Inner tessellation level", default=7)
+    arm_tess_mesh_outer = IntProperty(name="Outer", description="Outer tessellation level", default=7)
     arm_tess_shadows_inner = IntProperty(name="Inner", description="Inner tessellation level", default=7)
     arm_tess_shadows_outer = IntProperty(name="Outer", description="Outer tessellation level", default=7)
     arm_rp_resolution = EnumProperty(
@@ -535,7 +536,7 @@ class ArmRPListItem(bpy.types.PropertyGroup):
     arm_voxelgi_offset = FloatProperty(name="Offset", description="Ray offset", default=1.0, update=assets.invalidate_shader_cache)
     arm_voxelgi_range = FloatProperty(name="Range", description="Maximum range", default=2.0, update=assets.invalidate_shader_cache)
     arm_sss_width = FloatProperty(name="Width", description="SSS blur strength", default=1.0, update=assets.invalidate_shader_cache)
-    arm_clouds_density = FloatProperty(name="Density", default=1.0, min=0.0, max=10.0, update=assets.invalidate_shader_cache)
+    arm_clouds_density = FloatProperty(name="Density", default=1.0, min=0.0, max=1.0, update=assets.invalidate_shader_cache)
     arm_clouds_size = FloatProperty(name="Size", default=1.0, min=0.0, max=10.0, update=assets.invalidate_shader_cache)
     arm_clouds_lower = FloatProperty(name="Lower", default=2.0, min=1.0, max=10.0, update=assets.invalidate_shader_cache)
     arm_clouds_upper = FloatProperty(name="Upper", default=3.5, min=1.0, max=10.0, update=assets.invalidate_shader_cache)
@@ -604,7 +605,7 @@ class ArmRPListItem(bpy.types.PropertyGroup):
         items=[('GPU (Dual-Quat)', 'GPU (Dual-Quat)', 'GPU (Dual-Quat)'),
                ('GPU (Matrix)', 'GPU (Matrix)', 'GPU (Matrix)'),
                ('CPU', 'CPU', 'CPU'),
-               ('GPU Off', 'Off', 'Off')],
+               ('Off', 'Off', 'Off')],
         name='Skinning', description='Skinning method', default='GPU (Dual-Quat)', update=assets.invalidate_shader_cache)
     arm_skin_max_bones_auto = BoolProperty(name="Auto Bones", description="Calculate amount of maximum bones based on armatures", default=True, update=assets.invalidate_compiled_data)
     arm_skin_max_bones = IntProperty(name="Max Bones", default=50, min=1, max=3000, update=assets.invalidate_shader_cache)

@@ -41,7 +41,7 @@ def make(context_id, rpasses, shadowmap=False):
 
     wrd = bpy.data.worlds['Arm']
     if mat_state.material.arm_particle == 'gpu':
-        make_particle.write(vert)
+        make_particle.write(vert, shadowmap=shadowmap)
 
     if is_disp:
         rpdat = arm.utils.get_rp()
@@ -55,6 +55,9 @@ def make(context_id, rpasses, shadowmap=False):
             if con_depth.is_elem('tex1'):
                 vert.add_out('vec2 texCoord1') ## vs only, remove out
                 vert.write_attrib('texCoord1 = tex1;')
+            if con_depth.is_elem('col'):
+                vert.add_out('vec3 vcolor')
+                vert.write_attrib('vcolor = col;')
             vert.write('wposition += wnormal * disp * 0.1;')
             if shadowmap:
                 vert.add_uniform('mat4 LVP', '_lampViewProjectionMatrix')

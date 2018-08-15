@@ -19,14 +19,20 @@ def make(context_id):
 
     con = { 'name': context_id, 'depth_write': True, 'compare_mode': 'less', 'cull_mode': 'clockwise' }
     
-    # TODO: blend context
-    blend = mat_state.material.arm_blending
+    # Blend context
+    mat = mat_state.material
+    blend = mat.arm_blending
     if blend:
         con['name'] = 'blend'
-        con['blend_source'] = 'blend_one'
-        con['blend_destination'] = 'blend_one'
-        con['blend_operation'] = 'add'
+        con['blend_source'] = mat.arm_blending_source
+        con['blend_destination'] = mat.arm_blending_destination
+        con['blend_operation'] = mat.arm_blending_operation
+        con['alpha_blend_source'] = mat.arm_blending_source_alpha
+        con['alpha_blend_destination'] = mat.arm_blending_destination_alpha
+        con['alpha_blend_operation'] = mat.arm_blending_operation_alpha
         con['depth_write'] = False
+
+    # Depth prepass was performed
     dprepass = rid == 'Forward' and rpdat.rp_depthprepass
     if dprepass:
         con['depth_write'] = False
@@ -46,8 +52,10 @@ def make(context_id):
         if rpdat.arm_material_model != 'Full': # TODO: hide material enum
             print('Armory Warning: Deferred renderer only supports Full materials')
         make_deferred(con_mesh)
-    elif rid == 'Deferred Plus':
-        make_deferred_plus(con_mesh)
+    # elif rid == 'Deferred Plus':
+        # make_deferred_plus(con_mesh)
+    elif rid == 'Pathtracer':
+        make_pathtracer(con_mesh)
 
     make_finalize(con_mesh)
 
@@ -98,7 +106,7 @@ def make_finalize(con_mesh):
         vert.add_uniform('mat4 W', '_worldMatrix')
         vert.write_attrib('vec3 wposition = vec4(W * spos).xyz;')
 
-    frag_mpos = frag.contains('mposition') and not frag.contains('vec3 mposition') or vert.contains('mposition')
+    frag_mpos = (frag.contains('mposition') and not frag.contains('vec3 mposition')) or vert.contains('mposition')
     if frag_mpos:
         vert.add_out('vec3 mposition')
         vert.write_attrib('mposition = spos.xyz;')
@@ -113,7 +121,7 @@ def make_finalize(con_mesh):
             vert.write_pre = False
             make_tess.interpolate(tese, 'mposition', 3, declare_out=False)
 
-    frag_bpos = frag.contains('bposition') and not frag.contains('vec3 bposition') or vert.contains('bposition')
+    frag_bpos = (frag.contains('bposition') and not frag.contains('vec3 bposition')) or vert.contains('bposition')
     if frag_bpos:
         vert.add_out('vec3 bposition')
         vert.add_uniform('vec3 dim', link='_dim')
@@ -131,6 +139,32 @@ def make_finalize(con_mesh):
             vert.write('bposition = spos.xyz;')
             vert.write_pre = False
             make_tess.interpolate(tese, 'bposition', 3, declare_out=False)
+
+    frag_wtan = (frag.contains('wtangent') and not frag.contains('vec3 wtangent')) or vert.contains('wtangent')
+    if frag_wtan:
+        # Indicate we want tang attrib in finalizer to prevent TBN generation
+        con_mesh.add_elem('tex', 2)
+        con_mesh.add_elem('tang', 3)
+        vert.add_out('vec3 wtangent')
+        vert.write_pre = True
+        vert.write('wtangent = normalize(N * tang);')
+        vert.write_pre = False
+
+    if tese != None:
+        if frag_wtan:
+            make_tess.interpolate(tese, 'wtangent', 3, declare_out=True)
+        elif tese.contains('wtangent') and not tese.contains('vec3 wtangent'):
+            vert.add_out('vec3 wtangent')
+            vert.write_pre = True
+            vert.write('wtangent = normalize(N * tang);')
+            vert.write_pre = False
+            make_tess.interpolate(tese, 'wtangent', 3, declare_out=False)
+
+    if frag.contains('vVecCam'):
+        vert.add_out('vec3 eyeDirCam')
+        vert.add_uniform('mat4 WV', '_worldViewMatrix')
+        vert.write('eyeDirCam = vec4(WV * spos).xyz; eyeDirCam.z *= -1;')
+        frag.write_attrib('vec3 vVecCam = normalize(eyeDirCam);')
 
 def make_base(con_mesh, parse_opacity):
     global is_displacement
@@ -223,11 +257,8 @@ def make_base(con_mesh, parse_opacity):
     if con_mesh.is_elem('tang'):
         if tese != None:
             vert.add_out('vec3 wnormal')
-            vert.add_out('vec3 wtangent')
             write_norpos(con_mesh, vert)
-            vert.write('wtangent = normalize(N * tang);')
             tese.add_out('mat3 TBN')
-            make_tess.interpolate(tese, 'wtangent', 3, normalize=True)
             tese.write('vec3 wbitangent = normalize(cross(wnormal, wtangent));')
             tese.write('TBN = mat3(wtangent, wbitangent, wnormal);')
         else:
@@ -318,11 +349,19 @@ def make_deferred(con_mesh):
                 vert.add_out('vec4 wvpposition')
                 vert.add_out('vec4 prevwvpposition')
                 vert.write('wvpposition = gl_Position;')
-                vert.write('prevwvpposition = prevWVP * spos;')
+                if is_displacement:
+                    vert.add_uniform('mat4 invW', link='_inverseWorldMatrix')
+                    vert.write('prevwvpposition = prevWVP * (invW * wposition);')
+                else:
+                    vert.write('prevwvpposition = prevWVP * spos;')
             else:
                 vert.add_uniform('mat4 prevW', link='_prevWorldMatrix')
                 vert.add_out('vec3 prevwposition')
-                vert.write('prevwposition = vec4(prevW * spos).xyz;')
+                if is_displacement:
+                    vert.add_uniform('mat4 invW', link='_inverseWorldMatrix')
+                    vert.write('prevwposition = vec4(prevW * (invW * wposition)).xyz;')
+                else:
+                    vert.write('prevwposition = vec4(prevW * spos).xyz;')
                 tese.add_out('vec4 wvpposition')
                 tese.add_out('vec4 prevwvpposition')
                 tese.add_uniform('mat4 prevVP', '_prevViewProjectionMatrix')
@@ -364,43 +403,51 @@ def make_deferred(con_mesh):
 
     return con_mesh
 
-def make_deferred_plus(con_mesh):
+# def make_deferred_plus(con_mesh):
+#     vert = con_mesh.make_vert()
+#     frag = con_mesh.make_frag()
+
+#     frag.add_out('vec4[3] fragColor')
+
+#     vert.add_uniform('mat3 N', '_normalMatrix')
+#     vert.write_attrib('vec4 spos = vec4(pos, 1.0);')
+
+#     frag.ins = vert.outs
+#     vert.add_uniform('mat4 WVP', '_worldViewProjectionMatrix')
+#     vert.write('gl_Position = WVP * spos;')
+
+#     frag.add_include('compiled.glsl')
+
+#     vert.add_out('vec2 texCoord')
+
+#     con_mesh.add_elem('tex', 2) #### Add using cycles.py
+#     if con_mesh.is_elem('tex'):
+#         vert.write_attrib('texCoord = tex;')
+#     else:
+#         vert.write_attrib('texCoord = vec2(0.0);')
+
+#     vert.add_out('vec3 wnormal')
+#     write_norpos(con_mesh, vert)
+#     frag.write_attrib('vec3 n = normalize(wnormal);')
+
+#     frag.add_uniform('float materialID', link='_objectInfoMaterialIndex')
+
+#     # Pack gbuffer
+#     frag.add_include('std/gbuffer.glsl')
+#     frag.write('n /= (abs(n.x) + abs(n.y) + abs(n.z));')
+#     frag.write('n.xy = n.z >= 0.0 ? n.xy : octahedronWrap(n.xy);')
+#     frag.write('fragColor[0] = vec4(n.xy, fract(texCoord));')
+#     frag.write('fragColor[1] = vec4(materialID, 0.0, 0.0, 0.0);')
+#     frag.write('fragColor[2] = vec4(dFdx(texCoord), dFdy(texCoord));')
+#     # + tangent space
+
+def make_pathtracer(con_mesh):
+    wrd = bpy.data.worlds['Arm']
     vert = con_mesh.make_vert()
     frag = con_mesh.make_frag()
-
-    frag.add_out('vec4[3] fragColor')
-
-    vert.add_uniform('mat3 N', '_normalMatrix')
-    vert.write_attrib('vec4 spos = vec4(pos, 1.0);')
-
-    frag.ins = vert.outs
-    vert.add_uniform('mat4 WVP', '_worldViewProjectionMatrix')
-    vert.write('gl_Position = WVP * spos;')
-
-    frag.add_include('compiled.glsl')
-
-    vert.add_out('vec2 texCoord')
-
-    con_mesh.add_elem('tex', 2) #### Add using cycles.py
-    if con_mesh.is_elem('tex'):
-        vert.write_attrib('texCoord = tex;')
-    else:
-        vert.write_attrib('texCoord = vec2(0.0);')
-
-    vert.add_out('vec3 wnormal')
-    write_norpos(con_mesh, vert)
-    frag.write_attrib('vec3 n = normalize(wnormal);')
-
-    frag.add_uniform('float materialID', link='_objectInfoMaterialIndex')
-
-    # Pack gbuffer
-    frag.add_include('std/gbuffer.glsl')
-    frag.write('n /= (abs(n.x) + abs(n.y) + abs(n.z));')
-    frag.write('n.xy = n.z >= 0.0 ? n.xy : octahedronWrap(n.xy);')
-    frag.write('fragColor[0] = vec4(n.xy, fract(texCoord));')
-    frag.write('fragColor[1] = vec4(materialID, 0.0, 0.0, 0.0);')
-    frag.write('fragColor[2] = vec4(dFdx(texCoord), dFdy(texCoord));')
-    # + tangent space
+    vert.add_out('vec3 n')
+    vert.write('n = nor;')
+    vert.write('gl_Position = vec4(pos, 1.0);')
 
 def make_forward_mobile(con_mesh):
     wrd = bpy.data.worlds['Arm']
@@ -414,9 +461,10 @@ def make_forward_mobile(con_mesh):
     vert.write_attrib('vec4 spos = vec4(pos, 1.0);')
     frag.ins = vert.outs
     vert.add_uniform('mat4 WVP', '_worldViewProjectionMatrix')
-    vert.add_uniform('mat4 W', '_worldMatrix')
-    vert.add_out('vec3 wposition')
-    vert.write_attrib('wposition = vec4(W * spos).xyz;')
+    # Written in finalizer
+    # vert.add_uniform('mat4 W', '_worldMatrix')
+    # vert.add_out('vec3 wposition')
+    # vert.write_attrib('wposition = vec4(W * spos).xyz;')
     vert.write('gl_Position = WVP * spos;')
 
     frag.add_include('compiled.glsl')
@@ -435,9 +483,16 @@ def make_forward_mobile(con_mesh):
         vert.add_out('vec3 vcolor')
         vert.write('vcolor = col;')
 
-    vert.add_out('vec3 wnormal')
-    write_norpos(con_mesh, vert)
-    frag.write_attrib('vec3 n = normalize(wnormal);')
+    if con_mesh.is_elem('tang'):
+        vert.add_out('mat3 TBN')
+        write_norpos(con_mesh, vert, declare=True)
+        vert.write('vec3 tangent = normalize(N * tang);')
+        vert.write('vec3 bitangent = normalize(cross(wnormal, tangent));')
+        vert.write('TBN = mat3(tangent, bitangent, wnormal);')
+    else:
+        vert.add_out('vec3 wnormal')
+        write_norpos(con_mesh, vert)
+        frag.write_attrib('vec3 n = normalize(wnormal);')
 
     frag.add_include('std/math.glsl')
     frag.add_include('std/brdf.glsl')
@@ -532,13 +587,19 @@ def make_forward_solid(con_mesh):
     if '_LDR' in wrd.world_defs:
         frag.write('fragColor.rgb = pow(fragColor.rgb, vec3(1.0 / 2.2));')
 
+    if arm.utils.get_gapi().startswith('direct3d'):
+        vert.add_out('vec3 normal') # Prevent discard
+        vert.write('normal = nor;')
+
 def make_forward(con_mesh):
     wrd = bpy.data.worlds['Arm']
-    make_forward_base(con_mesh)
+    blend = mat_state.material.arm_blending
+    parse_opacity = blend and mat_utils.is_transluc(mat_state.material)
+    
+    make_forward_base(con_mesh, parse_opacity=parse_opacity)
 
     frag = con_mesh.frag
 
-    blend = mat_state.material.arm_blending
     if not blend:
         frag.add_out('vec4 fragColor')
         frag.write('fragColor = vec4(direct * lightColor * visibility + indirect * occlusion, 1.0);')
@@ -672,8 +733,11 @@ def make_forward_base(con_mesh, parse_opacity=False):
     blend = mat_state.material.arm_blending
     if blend:
         frag.add_out('vec4 fragColor')
-        # frag.write('fragColor = vec4(basecol * lightColor * visibility, 1.0);')
-        frag.write('fragColor = vec4(basecol, 1.0);')
+        if parse_opacity:
+            frag.write('fragColor = vec4(basecol, opacity);')
+        else:
+            # frag.write('fragColor = vec4(basecol * lightColor * visibility, 1.0);')
+            frag.write('fragColor = vec4(basecol, 1.0);')
         # TODO: Fade out fragments near depth buffer here
         return
 

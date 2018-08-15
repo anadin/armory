@@ -6,8 +6,8 @@ bl_info = {
     "location": "Properties -> Render -> Armory",
     "description": "3D Game Engine for Blender",
     "author": "Armory3D.org",
-    "version": (14, 0, 0),
-    "blender": (2, 79, 0),
+    "version": (15, 0, 0),
+    "blender": (2, 80, 0),
     "wiki_url": "http://armory3d.org/manual",
     "tracker_url": "https://github.com/armory3d/armory/issues"
 }
@@ -18,6 +18,7 @@ import stat
 import shutil
 import webbrowser
 import subprocess
+import threading
 import bpy
 import platform
 from bpy.types import Operator, AddonPreferences
@@ -146,14 +147,23 @@ def remove_readonly(func, path, excinfo):
     os.chmod(path, stat.S_IWRITE)
     func(path)
 
-def update_repo(p, n, gitn = ''):
+def run_proc(cmd, done):
+    def fn(p, done):
+        p.wait()
+        if done != None:
+            done()
+    p = subprocess.Popen(cmd)
+    threading.Thread(target=fn, args=(p, done)).start()
+    return p
+
+def update_repo(done, p, n, gitn = ''):
     if gitn == '':
         gitn = n
     if not os.path.exists(p + '/' + n + '_backup'):
         os.rename(p + '/' + n, p + '/' + n + '_backup')
     if os.path.exists(p + '/' + n):
         shutil.rmtree(p + '/' + n, onerror=remove_readonly)
-    subprocess.Popen(['git', 'clone', 'https://github.com/armory3d/' + gitn, p + '/' + n, '--depth=1'])
+    run_proc(['git', 'clone', 'https://github.com/armory3d/' + gitn, p + '/' + n, '--depth=1'], done)
 
 def restore_repo(p, n):
     if os.path.exists(p + '/' + n + '_backup'):
@@ -186,7 +196,6 @@ class ArmAddonStartButton(bpy.types.Operator):
             properties_object.OBJECT_PT_custom_props.COMPAT_ENGINES.add('ARMORY')
             from bl_ui import properties_particle
             properties_particle.PARTICLE_MT_specials.COMPAT_ENGINES.add('ARMORY')
-            properties_particle.PARTICLE_MT_hair_dynamics_presets.COMPAT_ENGINES.add('ARMORY')
             properties_particle.PARTICLE_PT_context_particles.COMPAT_ENGINES.add('ARMORY')
             properties_particle.PARTICLE_PT_emission.COMPAT_ENGINES.add('ARMORY')
             properties_particle.PARTICLE_PT_hair_dynamics.COMPAT_ENGINES.add('ARMORY')
@@ -241,8 +250,6 @@ class ArmAddonStartButton(bpy.types.Operator):
             from bl_ui import properties_data_bone
             properties_data_bone.BONE_PT_custom_props.COMPAT_ENGINES.add('ARMORY')
             from bl_ui import properties_data_camera
-            properties_data_camera.CAMERA_MT_presets.COMPAT_ENGINES.add('ARMORY')
-            properties_data_camera.SAFE_AREAS_MT_presets.COMPAT_ENGINES.add('ARMORY')
             properties_data_camera.DATA_PT_context_camera.COMPAT_ENGINES.add('ARMORY')
             properties_data_camera.DATA_PT_lens.COMPAT_ENGINES.add('ARMORY')
             properties_data_camera.DATA_PT_camera_stereoscopy.COMPAT_ENGINES.add('ARMORY')
@@ -255,17 +262,16 @@ class ArmAddonStartButton(bpy.types.Operator):
             from bl_ui import properties_data_curve
             properties_data_curve.DATA_PT_curve_texture_space.COMPAT_ENGINES.add('ARMORY')
             properties_data_curve.DATA_PT_custom_props_curve.COMPAT_ENGINES.add('ARMORY')
-            from bl_ui import properties_data_lamp
-            properties_data_lamp.LAMP_MT_sunsky_presets.COMPAT_ENGINES.add('ARMORY')
-            properties_data_lamp.DATA_PT_context_lamp.COMPAT_ENGINES.add('ARMORY')
-            properties_data_lamp.DATA_PT_preview.COMPAT_ENGINES.add('ARMORY')
-            # properties_data_lamp.DATA_PT_lamp.COMPAT_ENGINES.add('ARMORY')
-            properties_data_lamp.DATA_PT_EEVEE_lamp.COMPAT_ENGINES.add('ARMORY')
-            properties_data_lamp.DATA_PT_EEVEE_shadow.COMPAT_ENGINES.add('ARMORY')
-            properties_data_lamp.DATA_PT_area.COMPAT_ENGINES.add('ARMORY')
-            properties_data_lamp.DATA_PT_spot.COMPAT_ENGINES.add('ARMORY')
-            properties_data_lamp.DATA_PT_falloff_curve.COMPAT_ENGINES.add('ARMORY')
-            properties_data_lamp.DATA_PT_custom_props_lamp.COMPAT_ENGINES.add('ARMORY')
+            from bl_ui import properties_data_light
+            properties_data_light.DATA_PT_context_light.COMPAT_ENGINES.add('ARMORY')
+            properties_data_light.DATA_PT_preview.COMPAT_ENGINES.add('ARMORY')
+            # properties_data_light.DATA_PT_light.COMPAT_ENGINES.add('ARMORY')
+            properties_data_light.DATA_PT_EEVEE_light.COMPAT_ENGINES.add('ARMORY')
+            properties_data_light.DATA_PT_EEVEE_shadow.COMPAT_ENGINES.add('ARMORY')
+            properties_data_light.DATA_PT_area.COMPAT_ENGINES.add('ARMORY')
+            properties_data_light.DATA_PT_spot.COMPAT_ENGINES.add('ARMORY')
+            properties_data_light.DATA_PT_falloff_curve.COMPAT_ENGINES.add('ARMORY')
+            properties_data_light.DATA_PT_custom_props_light.COMPAT_ENGINES.add('ARMORY')
             from bl_ui import properties_data_lattice
             properties_data_lattice.DATA_PT_custom_props_lattice.COMPAT_ENGINES.add('ARMORY')
             from bl_ui import properties_data_lightprobe
@@ -274,8 +280,6 @@ class ArmAddonStartButton(bpy.types.Operator):
             properties_data_lightprobe.DATA_PT_lightprobe_parallax.COMPAT_ENGINES.add('ARMORY')
             properties_data_lightprobe.DATA_PT_lightprobe_display.COMPAT_ENGINES.add('ARMORY')
             from bl_ui import properties_data_mesh
-            properties_data_mesh.MESH_MT_vertex_group_specials.COMPAT_ENGINES.add('ARMORY')
-            properties_data_mesh.MESH_MT_shape_key_specials.COMPAT_ENGINES.add('ARMORY')
             properties_data_mesh.DATA_PT_context_mesh.COMPAT_ENGINES.add('ARMORY')
             properties_data_mesh.DATA_PT_normals.COMPAT_ENGINES.add('ARMORY')
             properties_data_mesh.DATA_PT_texture_space.COMPAT_ENGINES.add('ARMORY')
@@ -353,7 +357,7 @@ class ArmAddonUpdateButton(bpy.types.Operator):
     bl_idname = "arm_addon.update"
     bl_label = "Update SDK"
     bl_description = "Update to the latest development version"
- 
+
     def execute(self, context):
         p = get_sdk_path(context)
         if p == "":
@@ -362,13 +366,23 @@ class ArmAddonUpdateButton(bpy.types.Operator):
         self.report({'INFO'}, 'Updating, check console for details. Please restart Blender after successful SDK update.')
         print('Armory (add-on v' + str(bl_info['version']) + '): Cloning [armory, iron, haxebullet, haxerecast, zui] repositories')
         os.chdir(p)
-        update_repo(p, 'armory')
-        update_repo(p, 'iron')
-        update_repo(p, 'lib/haxebullet', 'haxebullet')
-        update_repo(p, 'lib/haxerecast', 'haxerecast')
-        update_repo(p, 'lib/zui', 'zui')
-        update_repo(p, 'lib/armory_tools', 'armory_tools')
-        update_repo(p, 'lib/iron_format', 'iron_format')
+        global repos_updated
+        global repos_total
+        repos_updated = 0
+        repos_total = 7
+        def done():
+            global repos_updated
+            global repos_total
+            repos_updated += 1
+            if repos_updated == repos_total:
+                print('Armory SDK updated, please restart Blender')
+        update_repo(done, p, 'armory')
+        update_repo(done, p, 'iron')
+        update_repo(done, p, 'lib/haxebullet', 'haxebullet')
+        update_repo(done, p, 'lib/haxerecast', 'haxerecast')
+        update_repo(done, p, 'lib/zui', 'zui')
+        update_repo(done, p, 'lib/armory_tools', 'armory_tools')
+        update_repo(done, p, 'lib/iron_format', 'iron_format')
         return {"FINISHED"}
 
 class ArmAddonRestoreButton(bpy.types.Operator):
@@ -414,7 +428,12 @@ def draw_view3d_header(self, context):
     layout.operator("arm_addon.start")
 
 def register():
-    bpy.utils.register_module(__name__)
+    bpy.utils.register_class(ArmoryAddonPreferences)
+    bpy.utils.register_class(ArmAddonStartButton)
+    bpy.utils.register_class(ArmAddonStopButton)
+    bpy.utils.register_class(ArmAddonUpdateButton)
+    bpy.utils.register_class(ArmAddonRestoreButton)
+    bpy.utils.register_class(ArmAddonInstallGitButton)
     if hasattr(bpy.app.handlers, 'scene_update_post'):
         bpy.app.handlers.scene_update_post.append(on_scene_update_post)
     else:
@@ -422,7 +441,12 @@ def register():
 
 def unregister():
     bpy.ops.arm_addon.stop()
-    bpy.utils.unregister_module(__name__)
+    bpy.utils.unregister_class(ArmoryAddonPreferences)
+    bpy.utils.unregister_class(ArmAddonStartButton)
+    bpy.utils.unregister_class(ArmAddonStopButton)
+    bpy.utils.unregister_class(ArmAddonUpdateButton)
+    bpy.utils.unregister_class(ArmAddonRestoreButton)
+    bpy.utils.unregister_class(ArmAddonInstallGitButton)
 
 if __name__ == "__main__":
     register()

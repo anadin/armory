@@ -230,17 +230,17 @@ def parse_shader(node, socket):
 
     elif node.type == 'BSDF_PRINCIPLED':
         if parse_surface:
-            write_normal(node.inputs[16])
+            write_normal(node.inputs[17])
             parsing_basecolor(True)
             out_basecol = parse_vector_input(node.inputs[0])
             parsing_basecolor(False)
-            out_roughness = parse_value_input(node.inputs[7])
-            out_metallic = parse_value_input(node.inputs[4])
             # subsurface = parse_vector_input(node.inputs[1])
             # subsurface_radius = parse_vector_input(node.inputs[2])
             # subsurface_color = parse_vector_input(node.inputs[3])
+            out_metallic = parse_value_input(node.inputs[4])
             out_specular = parse_value_input(node.inputs[5])
             # specular_tint = parse_vector_input(node.inputs[6])
+            out_roughness = parse_value_input(node.inputs[7])
             # aniso = parse_vector_input(node.inputs[8])
             # aniso_rot = parse_vector_input(node.inputs[9])
             # sheen = parse_vector_input(node.inputs[10])
@@ -249,6 +249,7 @@ def parse_shader(node, socket):
             # clearcoat_rough = parse_vector_input(node.inputs[13])
             # ior = parse_vector_input(node.inputs[14])
             # transmission = parse_vector_input(node.inputs[15])
+            # transmission_roughness = parse_vector_input(node.inputs[16]) # Hidden socket
 
     elif node.type == 'BSDF_DIFFUSE':
         if parse_surface:
@@ -379,8 +380,12 @@ def parse_vector_input(inp):
             else:
                 return to_vec3(inp.default_value)
 
-def parse_rgb(node, socket):
+def parse_vector(node, socket):
+    global particle_info
+    global sample_bump
+    global sample_bump_res
 
+    # RGB
     if node.type == 'GROUP':
         return parse_group(node, socket)
 
@@ -388,10 +393,22 @@ def parse_rgb(node, socket):
         return parse_group_input(node, socket)
 
     elif node.type == 'ATTRIBUTE':
-        # Vcols only for now
-        # node.attribute_name
-        con.add_elem('col', 3)
-        return 'vcolor'
+        if socket == node.outputs[0]: # Color
+            con.add_elem('col', 3) # Vcols only for now
+            return 'vcolor'
+        else: # Vector
+            con.add_elem('tex', 2) # UVMaps only for now
+            mat = mat_get_material()
+            mat_users = mat_get_material_users()
+            if mat_users != None and mat in mat_users:
+                mat_user = mat_users[mat][0]
+                if hasattr(mat_user.data, 'uv_layers'): # No uvlayers for Curve
+                    lays = mat_user.data.uv_layers
+                    # Second uvmap referenced
+                    if len(lays) > 1 and node.attribute_name == lays[1].name:
+                        con.add_elem('tex1', 2)
+                        return 'vec3(texCoord1.x, 1.0 - texCoord1.y, 0.0)'
+            return 'vec3(texCoord.x, 1.0 - texCoord.y, 0.0)'
 
     elif node.type == 'RGB':
         if node.arm_material_param:
@@ -469,8 +486,8 @@ def parse_rgb(node, socket):
             tex['file'] = ''
             return '{0}.rgb'.format(texture_store(node, tex, tex_name, True, tex_link=tex_link))
         else:
-            tex_store = store_var_name(node) # Pink color for missing texture
-            curshader.write('vec4 {0} = vec4(1.0, 0.0, 1.0, 1.0);'.format(tex_store))
+            tex_store = store_var_name(node)
+            curshader.write('vec4 {0} = vec4(1.0, 0.0, 1.0, 1.0); // Pink color for missing texture'.format(tex_store))
             return '{0}.rgb'.format(tex_store)
 
     elif node.type == 'TEX_MAGIC':
@@ -554,13 +571,16 @@ def parse_rgb(node, socket):
         return 'pow({0}, vec3({1}))'.format(out_col, gamma)
 
     elif node.type == 'HUE_SAT':
+        curshader.add_function(c_functions.str_rgb_to_hsv)
         curshader.add_function(c_functions.str_hsv_to_rgb)
+        curshader.add_function(c_functions.str_hue_sat)
         hue = parse_value_input(node.inputs[0])
         sat = parse_value_input(node.inputs[1])
         val = parse_value_input(node.inputs[2])
-        # fac = parse_value_input(node.inputs[3])
-        # col = parse_vector_input(node.inputs[4])
-        return 'hsv_to_rgb(vec3({0}, {1}, {2}))'.format(hue, sat, val)
+        fac = parse_value_input(node.inputs[3])
+        col = parse_vector_input(node.inputs[4])
+        # return 'hsv_to_rgb(vec3({0} - 0.5, {1}, {2}))'.format(hue, sat, val)
+        return 'hue_sat({0}, vec4({1}-0.5, {2}, {3}, 1-{4}))'.format(col, hue, sat, val, fac)
 
     elif node.type == 'INVERT':
         fac = parse_value_input(node.inputs[0])
@@ -630,22 +650,31 @@ def parse_rgb(node, socket):
         elems = node.color_ramp.elements
         if len(elems) == 1:
             return to_vec3(elems[0].color)
+        # Write cols array
+        cols_var = node_name(node.name) + '_cols'
+        curshader.write('vec3 {0}[{1}];'.format(cols_var, len(elems))) # TODO: Make const
+        for i in range(0, len(elems)):
+            curshader.write('{0}[{1}] = vec3({2}, {3}, {4});'.format(cols_var, i, elems[i].color[0], elems[i].color[1], elems[i].color[2]))
+        # Get index
+        fac_var = node_name(node.name) + '_fac'
+        curshader.write('float {0} = {1};'.format(fac_var, fac))
+        index = '0'
+        for i in  range(1, len(elems)):
+            index += ' + ({0} > {1} ? 1 : 0)'.format(fac_var, elems[i].position)
+        # Write index
+        index_var = node_name(node.name) + '_i'
+        curshader.write('int {0} = {1};'.format(index_var, index))
         if interp == 'CONSTANT':
-            fac_var = node_name(node.name) + '_fac'
-            curshader.write('float {0} = {1};'.format(fac_var, fac))
-            # Get index
-            out_i = '0'
-            for i in  range(1, len(elems)):
-                out_i += ' + ({0} > {1} ? 1 : 0)'.format(fac_var, elems[i].position)
-            # Write cols array
-            cols_var = node_name(node.name) + '_cols'
-            curshader.write('vec3 {0}[{1}];'.format(cols_var, len(elems)))
+            return '{0}[{1}]'.format(cols_var, index_var)
+        else: # Linear
+            # Write facs array
+            facs_var = node_name(node.name) + '_facs'
+            curshader.write('float {0}[{1}];'.format(facs_var, len(elems))) # TODO: Make const
             for i in range(0, len(elems)):
-                curshader.write('{0}[{1}] = vec3({2}, {3}, {4});'.format(cols_var, i, elems[i].color[0], elems[i].color[1], elems[i].color[2]))
-            return '{0}[{1}]'.format(cols_var, out_i)
-        else: # Linear, .. - 2 elems only, end pos assumed to be 1
-            # float f = clamp((pos - start) * (1.0 / (1.0 - start)), 0.0, 1.0);
-            return 'mix({0}, {1}, clamp(({2} - {3}) * (1.0 / (1.0 - {3})), 0.0, 1.0))'.format(to_vec3(elems[0].color), to_vec3(elems[1].color), fac, elems[0].position)
+                curshader.write('{0}[{1}] = {2};'.format(facs_var, i, elems[i].position))
+            # Mix color
+            # float f = (pos - start) * (1.0 / (finish - start))
+            return 'mix({0}[{1}], {0}[{1} + 1], ({2} - {3}[{1}]) * (1.0 / ({3}[{1} + 1] - {3}[{1}]) ))'.format(cols_var, index_var, fac_var, facs_var)
 
     elif node.type == 'COMBHSV':
         # Pass constant
@@ -663,35 +692,11 @@ def parse_rgb(node, socket):
         # Roughly map to cycles - 450 to 600 nanometers
         return 'wavelength_to_rgb(({0} - 450.0) / 150.0)'.format(wl)
 
-def parse_vector(node, socket):
-    global particle_info
-    global sample_bump
-    global sample_bump_res
-
-    if node.type == 'GROUP':
-        return parse_group(node, socket)
-
-    elif node.type == 'GROUP_INPUT':
-        return parse_group_input(node, socket)
-
-    elif node.type == 'ATTRIBUTE':
-        # UVMaps only for now
-        con.add_elem('tex', 2)
-        mat = mat_get_material()
-        mat_users = mat_get_material_users()
-        if mat_users != None and mat in mat_users:
-            mat_user = mat_users[mat][0]
-            if hasattr(mat_user.data, 'uv_layers'): # No uvlayers for Curve
-                lays = mat_user.data.uv_layers
-                # Second uvmap referenced
-                if len(lays) > 1 and node.attribute_name == lays[1].name:
-                    con.add_elem('tex1', 2)
-                    return 'vec3(texCoord1.xy, 0.0)'
-        return 'vec3(texCoord.xy, 0.0)'
+    # Vector
 
     elif node.type == 'CAMERA':
-        # View Vector
-        return 'vVec'
+        # View Vector in camera space
+        return 'vVecCam'
 
     elif node.type == 'NEW_GEOMETRY':
         if socket == node.outputs[0]: # Position
@@ -699,7 +704,7 @@ def parse_vector(node, socket):
         elif socket == node.outputs[1]: # Normal
             return 'n'
         elif socket == node.outputs[2]: # Tangent
-            return 'vec3(0.0)'
+            return 'wtangent'
         elif socket == node.outputs[3]: # True Normal
             return 'n'
         elif socket == node.outputs[4]: # Incoming
@@ -725,7 +730,7 @@ def parse_vector(node, socket):
             return 'vec3(0.0)'
 
     elif node.type == 'TANGENT':
-        return 'vec3(0.0)'
+        return 'wtangent'
 
     elif node.type == 'TEX_COORD':
         #obj = node.object
@@ -747,9 +752,19 @@ def parse_vector(node, socket):
             return 'vec3(0.0)'
 
     elif node.type == 'UVMAP':
-        #map = node.uv_map
         #dupli = node.from_dupli
-        return 'vec3(0.0)'
+        con.add_elem('tex', 2)
+        mat = mat_get_material()
+        mat_users = mat_get_material_users()
+        if mat_users != None and mat in mat_users:
+            mat_user = mat_users[mat][0]
+            if hasattr(mat_user.data, 'uv_layers'):
+                lays = mat_user.data.uv_layers
+                # Second uvmap referenced
+                if len(lays) > 1 and node.uv_map == lays[1].name:
+                    con.add_elem('tex1', 2)
+                    return 'vec3(texCoord1.x, 1.0 - texCoord1.y, 0.0)'
+        return 'vec3(texCoord.x, 1.0 - texCoord.y, 0.0)'
 
     elif node.type == 'BUMP':
         # Interpolation strength
@@ -777,18 +792,21 @@ def parse_vector(node, socket):
 
     elif node.type == 'MAPPING':
         out = parse_vector_input(node.inputs[0])
-        # ZYX rotation, Z axis for now..
+        if node.scale[0] != 1.0 or node.scale[1] != 1.0 or node.scale[2] != 1.0:
+            out = '({0} * vec3({1}, {2}, {3}))'.format(out, node.scale[0], node.scale[1], node.scale[2])
         if node.rotation[2] != 0.0:
+            # ZYX rotation, Z axis for now..
             a = node.rotation[2]
-            out = 'vec3({0}.x * {1} - (1.0 - {0}.y) * {2}, 1.0 - ({0}.x * {2} + (1.0 - {0}.y) * {1}), 0.0)'.format(out, math.cos(a), math.sin(a))
+            # x * cos(theta) - y * sin(theta)
+            # x * sin(theta) + y * cos(theta)
+            out = 'vec3({0}.x * {1} - ({0}.y) * {2}, {0}.x * {2} + ({0}.y) * {1}, 0.0)'.format(out, math.cos(a), math.sin(a))
         # if node.rotation[1] != 0.0:
         #     a = node.rotation[1]
         #     out = 'vec3({0}.x * {1} - {0}.z * {2}, {0}.x * {2} + {0}.z * {1}, 0.0)'.format(out, math.cos(a), math.sin(a))
         # if node.rotation[0] != 0.0:
         #     a = node.rotation[0]
         #     out = 'vec3({0}.y * {1} - {0}.z * {2}, {0}.y * {2} + {0}.z * {1}, 0.0)'.format(out, math.cos(a), math.sin(a))
-        if node.scale[0] != 1.0 or node.scale[1] != 1.0 or node.scale[2] != 1.0:
-            out = '({0} * vec3({1}, {2}, {3}))'.format(out, node.scale[0], node.scale[1], node.scale[2])
+        
         if node.translation[0] != 0.0 or node.translation[1] != 0.0 or node.translation[2] != 0.0:
             out = '({0} + vec3({1}, {2}, {3}))'.format(out, node.translation[0], node.translation[1], node.translation[2])
         if node.use_min:
@@ -880,7 +898,8 @@ def parse_normal_map_color_input(inp, strength=1.0):
         frag.write('n = TBN * normalize(texn);')
     else:
         frag.write('vec3 n = ({0}) * 2.0 - 1.0;'.format(parse_vector_input(inp)))
-        frag.write('n.xy *= {0};'.format(strength))
+        if strength != 1.0:
+            frag.write('n.xy *= {0};'.format(strength))
         frag.write('n = normalize(TBN * n);')
         con.add_elem('tang', 3)
     frag.write_normal -= 1
@@ -1084,7 +1103,7 @@ def parse_value(node, socket):
             return res
         else:
             tex_store = store_var_name(node) # Pink color for missing texture
-            curshader.write('vec4 {0} = vec4(1.0, 0.0, 1.0, 1.0);'.format(tex_store))
+            curshader.write('vec4 {0} = vec4(1.0, 0.0, 1.0, 1.0); // Pink color for missing texture'.format(tex_store))
             return '{0}.a'.format(tex_store)
 
     elif node.type == 'TEX_MAGIC':
@@ -1267,12 +1286,7 @@ def write_result(l):
     st = l.from_socket.type
     if res_var not in parsed:
         parsed[res_var] = True
-        if st == 'RGB' or st == 'RGBA':
-            res = parse_rgb(l.from_node, l.from_socket)
-            if res == None:
-                return None
-            curshader.write('vec3 {0} = {1};'.format(res_var, res))
-        elif st == 'VECTOR':
+        if st == 'RGB' or st == 'RGBA' or st == 'VECTOR':
             res = parse_vector(l.from_node, l.from_socket)
             if res == None:
                 return None

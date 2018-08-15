@@ -83,39 +83,39 @@ def init_properties():
     bpy.types.World.arm_project_icon = StringProperty(name="Icon", description="Exported project icon", default="", subtype="FILE_PATH", update=invalidate_compiler_cache)
     bpy.types.World.arm_project_root = StringProperty(name="Root", description="Set root folder for linked assets", default="", subtype="FILE_PATH", update=invalidate_compiler_cache)
     bpy.types.World.arm_physics = EnumProperty(
-        items = [('Disabled', 'Disabled', 'Disabled'), 
-                 ('Auto', 'Auto', 'Auto'),
-                 ('Enabled', 'Enabled', 'Enabled')],
-        name = "Physics", default='Auto')
+        items=[('Disabled', 'Disabled', 'Disabled'),
+               ('Auto', 'Auto', 'Auto'),
+               ('Enabled', 'Enabled', 'Enabled')],
+        name="Physics", default='Auto', update=invalidate_compiler_cache)
     bpy.types.World.arm_physics_engine = EnumProperty(
-        items = [('Bullet', 'Bullet', 'Bullet'),
-                 ('Oimo', 'Oimo', 'Oimo')],
-        name = "Physics Engine", default='Bullet')
+        items=[('Bullet', 'Bullet', 'Bullet'),
+               ('Oimo', 'Oimo', 'Oimo')],
+        name="Physics Engine", default='Bullet', update=invalidate_compiler_cache)
     bpy.types.World.arm_navigation = EnumProperty(
-        items = [('Disabled', 'Disabled', 'Disabled'), 
-                 ('Auto', 'Auto', 'Auto'),
-                 ('Enabled', 'Enabled', 'Enabled')],
-        name = "Navigation", default='Auto')
+        items=[('Disabled', 'Disabled', 'Disabled'),
+               ('Auto', 'Auto', 'Auto'),
+               ('Enabled', 'Enabled', 'Enabled')],
+        name="Navigation", default='Auto', update=invalidate_compiler_cache)
     bpy.types.World.arm_navigation_engine = EnumProperty(
-        items = [('Recast', 'Recast', 'Recast')],
-        name = "Navigation Engine", default='Recast')
+        items=[('Recast', 'Recast', 'Recast')],
+        name="Navigation Engine", default='Recast')
     bpy.types.World.arm_ui = EnumProperty(
-        items = [('Disabled', 'Disabled', 'Disabled'), 
-                 ('Enabled', 'Enabled', 'Enabled'),
-                 ('Auto', 'Auto', 'Auto')],
-        name = "Zui", default='Auto', description="Include UI library")
+        items=[('Disabled', 'Disabled', 'Disabled'),
+               ('Enabled', 'Enabled', 'Enabled'),
+               ('Auto', 'Auto', 'Auto')],
+        name="Zui", default='Auto', description="Include UI library", update=invalidate_compiler_cache)
     bpy.types.World.arm_hscript = EnumProperty(
-        items = [('Disabled', 'Disabled', 'Disabled'), 
-                 ('Enabled', 'Enabled', 'Enabled')],
-        name = "Hscript", default='Disabled', description="Include Hscript library")
+        items=[('Disabled', 'Disabled', 'Disabled'),
+               ('Enabled', 'Enabled', 'Enabled')],
+        name="Hscript", default='Disabled', description="Include Hscript library", update=invalidate_compiler_cache)
     bpy.types.World.arm_formatlib = EnumProperty(
-        items = [('Disabled', 'Disabled', 'Disabled'), 
-                 ('Enabled', 'Enabled', 'Enabled')],
-        name = "Format", default='Disabled', description="Include Format library")
+        items=[('Disabled', 'Disabled', 'Disabled'),
+               ('Enabled', 'Enabled', 'Enabled')],
+        name="Format", default='Disabled', description="Include Format library", update=invalidate_compiler_cache)
     bpy.types.World.arm_audio = EnumProperty(
-        items = [('Disabled', 'Disabled', 'Disabled'), 
-                 ('Enabled', 'Enabled', 'Enabled')],
-        name = "Audio", default='Enabled')
+        items=[('Disabled', 'Disabled', 'Disabled'),
+               ('Enabled', 'Enabled', 'Enabled')],
+        name="Audio", default='Enabled', update=invalidate_compiler_cache)
     bpy.types.World.arm_khafile = StringProperty(name="Khafile", description="Source appended to khafile.js", update=invalidate_compiler_cache)
     bpy.types.World.arm_khamake = StringProperty(name="Khamake", description="Command line params appended to khamake", update=invalidate_compiler_cache)
     bpy.types.World.arm_texture_quality = FloatProperty(name="Texture Quality", default=1.0, min=0.0, max=1.0, subtype='FACTOR', update=invalidate_compiler_cache)
@@ -153,7 +153,6 @@ def init_properties():
     bpy.types.World.arm_write_config = BoolProperty(name="Write Config", description="Allow this project to be configured at runtime via a JSON file", default=False, update=invalidate_compiler_cache)
     bpy.types.World.arm_winmode = EnumProperty(
         items = [('Window', 'Window', 'Window'),
-                 ('BorderlessWindow', 'Borderless', 'BorderlessWindow'),
                  ('Fullscreen', 'Fullscreen', 'Fullscreen')],
         name="Mode", default='Window', description='Window mode to start in', update=invalidate_compiler_cache)
     bpy.types.World.arm_winorient = EnumProperty(
@@ -246,7 +245,7 @@ def init_properties():
     bpy.types.World.arm_envtex_turbidity = FloatProperty(name="Turbidity", default=1.0)
     bpy.types.World.arm_envtex_ground_albedo = FloatProperty(name="Ground Albedo", default=0.0)
     bpy.types.Material.arm_cast_shadow = BoolProperty(name="Cast Shadow", default=True)
-    bpy.types.Material.arm_receive_shadow = BoolProperty(name="Receive Shadow", default=True)
+    bpy.types.Material.arm_receive_shadow = BoolProperty(name="Receive Shadow", description="Requires forward render path", default=True)
     bpy.types.Material.arm_overlay = BoolProperty(name="Overlay", default=False)
     bpy.types.Material.arm_decal = BoolProperty(name="Decal", default=False)
     bpy.types.Material.arm_two_sided = BoolProperty(name="Two-Sided", description="Flip normal when drawing back-face", default=False)
@@ -272,15 +271,83 @@ def init_properties():
     bpy.types.Material.arm_particle_fade = BoolProperty(name="Particle Fade", description="Fade particles in and out", default=False)
     bpy.types.Material.arm_tilesheet_mat = BoolProperty(name="Tilesheet", description="Generate tilesheet shaders", default=False)
     bpy.types.Material.arm_blending = BoolProperty(name="Blending", description="Enable additive blending", default=False)
+    bpy.types.Material.arm_blending_source = EnumProperty(
+        items=[('blend_one', 'One', 'One'),
+               ('blend_zero', 'Zero', 'Zero'),
+               ('source_alpha', 'Source Alpha', 'Source Alpha'),
+               ('destination_alpha', 'Destination Alpha', 'Destination Alpha'),
+               ('inverse_source_alpha', 'Inverse Source Alpha', 'Inverse Source Alpha'),
+               ('inverse_destination_alpha', 'Inverse Destination Alpha', 'Inverse Destination Alpha'),
+               ('source_color', 'Source Color', 'Source Color'),
+               ('destination_color', 'Destination Color', 'Destination Color'),
+               ('inverse_source_color', 'Inverse Source Color', 'Inverse Source Color'),
+               ('inverse_destination_color', 'Inverse Destination Color', 'Inverse Destination Color')],
+        name='Source', default='blend_one', description='Blending factor', update=assets.invalidate_shader_cache)
+    bpy.types.Material.arm_blending_destination = EnumProperty(
+        items=[('blend_one', 'One', 'One'),
+               ('blend_zero', 'Zero', 'Zero'),
+               ('source_alpha', 'Source Alpha', 'Source Alpha'),
+               ('destination_alpha', 'Destination Alpha', 'Destination Alpha'),
+               ('inverse_source_alpha', 'Inverse Source Alpha', 'Inverse Source Alpha'),
+               ('inverse_destination_alpha', 'Inverse Destination Alpha', 'Inverse Destination Alpha'),
+               ('source_color', 'Source Color', 'Source Color'),
+               ('destination_color', 'Destination Color', 'Destination Color'),
+               ('inverse_source_color', 'Inverse Source Color', 'Inverse Source Color'),
+               ('inverse_destination_color', 'Inverse Destination Color', 'Inverse Destination Color')],
+        name='Destination', default='blend_one', description='Blending factor', update=assets.invalidate_shader_cache)
+    bpy.types.Material.arm_blending_operation = EnumProperty(
+        items=[('add', 'Add', 'Add'),
+               ('subtract', 'Subtract', 'Subtract'),
+               ('reverse_subtract', 'Reverse Subtract', 'Reverse Subtract'),
+               ('min', 'Min', 'Min'),
+               ('max', 'Max', 'Max')],
+        name='Operation', default='add', description='Blending operation', update=assets.invalidate_shader_cache)
+    bpy.types.Material.arm_blending_source_alpha = EnumProperty(
+        items=[('blend_one', 'One', 'One'),
+               ('blend_zero', 'Zero', 'Zero'),
+               ('source_alpha', 'Source Alpha', 'Source Alpha'),
+               ('destination_alpha', 'Destination Alpha', 'Destination Alpha'),
+               ('inverse_source_alpha', 'Inverse Source Alpha', 'Inverse Source Alpha'),
+               ('inverse_destination_alpha', 'Inverse Destination Alpha', 'Inverse Destination Alpha'),
+               ('source_color', 'Source Color', 'Source Color'),
+               ('destination_color', 'Destination Color', 'Destination Color'),
+               ('inverse_source_color', 'Inverse Source Color', 'Inverse Source Color'),
+               ('inverse_destination_color', 'Inverse Destination Color', 'Inverse Destination Color')],
+        name='Source', default='blend_one', description='Blending factor', update=assets.invalidate_shader_cache)
+    bpy.types.Material.arm_blending_destination_alpha = EnumProperty(
+        items=[('blend_one', 'One', 'One'),
+               ('blend_zero', 'Zero', 'Zero'),
+               ('source_alpha', 'Source Alpha', 'Source Alpha'),
+               ('destination_alpha', 'Destination Alpha', 'Destination Alpha'),
+               ('inverse_source_alpha', 'Inverse Source Alpha', 'Inverse Source Alpha'),
+               ('inverse_destination_alpha', 'Inverse Destination Alpha', 'Inverse Destination Alpha'),
+               ('source_color', 'Source Color', 'Source Color'),
+               ('destination_color', 'Destination Color', 'Destination Color'),
+               ('inverse_source_color', 'Inverse Source Color', 'Inverse Source Color'),
+               ('inverse_destination_color', 'Inverse Destination Color', 'Inverse Destination Color')],
+        name='Destination', default='blend_one', description='Blending factor', update=assets.invalidate_shader_cache)
+    bpy.types.Material.arm_blending_operation_alpha = EnumProperty(
+        items=[('add', 'Add', 'Add'),
+               ('subtract', 'Subtract', 'Subtract'),
+               ('reverse_subtract', 'Reverse Subtract', 'Reverse Subtract'),
+               ('min', 'Min', 'Min'),
+               ('max', 'Max', 'Max')],
+        name='Operation', default='add', description='Blending operation', update=assets.invalidate_shader_cache)
     # For scene
     bpy.types.Scene.arm_export = BoolProperty(name="Export", description="Export scene data", default=True)
     # bpy.types.Scene.arm_gp_export = BoolProperty(name="Export GP", description="Export grease pencil data", default=True)
     bpy.types.Scene.arm_compress = BoolProperty(name="Compress", description="Pack data into zip file", default=False)
     # For lamp
-    bpy.types.Lamp.arm_clip_start = FloatProperty(name="Clip Start", default=0.1)
-    bpy.types.Lamp.arm_clip_end = FloatProperty(name="Clip End", default=50.0)
-    bpy.types.Lamp.arm_fov = FloatProperty(name="Field of View", default=0.84)
-    bpy.types.Lamp.arm_shadows_bias = FloatProperty(name="Bias", description="Depth offset to fight shadow acne", default=1.0)
+    if bpy.app.version >= (2, 80, 1):
+        bpy.types.Light.arm_clip_start = FloatProperty(name="Clip Start", default=0.1)
+        bpy.types.Light.arm_clip_end = FloatProperty(name="Clip End", default=50.0)
+        bpy.types.Light.arm_fov = FloatProperty(name="Field of View", default=0.84)
+        bpy.types.Light.arm_shadows_bias = FloatProperty(name="Bias", description="Depth offset to fight shadow acne", default=1.0)
+    else:
+        bpy.types.Lamp.arm_clip_start = FloatProperty(name="Clip Start", default=0.1)
+        bpy.types.Lamp.arm_clip_end = FloatProperty(name="Clip End", default=50.0)
+        bpy.types.Lamp.arm_fov = FloatProperty(name="Field of View", default=0.84)
+        bpy.types.Lamp.arm_shadows_bias = FloatProperty(name="Bias", description="Depth offset to fight shadow acne", default=1.0)
     bpy.types.World.arm_lamp_texture = StringProperty(name="Mask Texture", default="")
     bpy.types.World.arm_lamp_ies_texture = StringProperty(name="IES Texture", default="")
     bpy.types.World.arm_lamp_clouds_texture = StringProperty(name="Clouds Texture", default="")
