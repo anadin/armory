@@ -81,8 +81,8 @@ def export_data(fp, sdk_path):
         if os.path.isdir(build_dir + '/compiled/Shaders'):
             shutil.rmtree(build_dir + '/compiled/Shaders', onerror=remove_readonly)
 
-    raw_shaders_path = sdk_path + 'armory/Shaders/'
-    assets_path = sdk_path + 'armory/Assets/'
+    raw_shaders_path = sdk_path + '/armory/Shaders/'
+    assets_path = sdk_path + '/armory/Assets/'
     export_physics = bpy.data.worlds['Arm'].arm_physics != 'Disabled'
     export_navigation = bpy.data.worlds['Arm'].arm_navigation != 'Disabled'
     export_ui = bpy.data.worlds['Arm'].arm_ui != 'Disabled'
@@ -143,7 +143,8 @@ def export_data(fp, sdk_path):
     defs = arm.utils.def_strings_to_array(wrd.world_defs)
     cdefs = arm.utils.def_strings_to_array(wrd.compo_defs)
     print('Shader flags: ' + str(defs))
-    # print('Khafile flags: ' + str(assets.khafile_defs))
+    if wrd.arm_play_console:
+        print('Khafile flags: ' + str(assets.khafile_defs))
 
     # Write compiled.glsl
     shaders_path = build_dir + '/compiled/Shaders'
@@ -279,7 +280,7 @@ def build_viewport():
     if not arm.utils.check_engine(None):
         return
 
-    arm.utils.check_default_rp()
+    arm.utils.check_default_props()
 
     assets.invalidate_enabled = False
     play(is_viewport=True)

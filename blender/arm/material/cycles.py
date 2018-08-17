@@ -35,6 +35,7 @@ def parse(nodes, con, vert, frag, geom, tesc, tese, parse_surface=True, parse_op
 
 def parse_output(node, _con, _vert, _frag, _geom, _tesc, _tese, _parse_surface, _parse_opacity, _parse_displacement, _basecol_only):
     global parsed # Compute nodes only once
+    global parsed_wt
     global parents
     global normal_parsed
     global curshader # Active shader - frag for surface / tese for displacement
@@ -79,6 +80,7 @@ def parse_output(node, _con, _vert, _frag, _geom, _tesc, _tese, _parse_surface, 
     # Surface
     if parse_surface or parse_opacity:
         parsed = {}
+        parsed_wt = {}
         parents = []
         normal_parsed = False
         curshader = frag
@@ -99,6 +101,7 @@ def parse_output(node, _con, _vert, _frag, _geom, _tesc, _tese, _parse_surface, 
     # Displacement
     if _parse_displacement and disp_enabled() and node.inputs[2].is_linked:
         parsed = {}
+        parsed_wt
         parents = []
         normal_parsed = False
         rpdat = arm.utils.get_rp()
@@ -380,6 +383,30 @@ def parse_vector_input(inp):
             else:
                 return to_vec3(inp.default_value)
 
+def vector_curve(name, fac, points):
+    # Write Ys array
+    ys_var = name + '_ys'
+    curshader.write('float {0}[{1}];'.format(ys_var, len(points))) # TODO: Make const
+    for i in range(0, len(points)):
+        curshader.write('{0}[{1}] = {2};'.format(ys_var, i, points[i].location[1]))
+    # Get index
+    fac_var = name + '_fac'
+    curshader.write('float {0} = {1};'.format(fac_var, fac))
+    index = '0'
+    for i in  range(1, len(points)):
+        index += ' + ({0} > {1} ? 1 : 0)'.format(fac_var, points[i].location[0])
+    # Write index
+    index_var = name + '_i'
+    curshader.write('int {0} = {1};'.format(index_var, index))
+    # Linear
+    # Write Xs array
+    facs_var = name + '_xs'
+    curshader.write('float {0}[{1}];'.format(facs_var, len(points))) # TODO: Make const
+    for i in range(0, len(points)):
+        curshader.write('{0}[{1}] = {2};'.format(facs_var, i, points[i].location[0]))
+    # Map vector
+    return 'mix({0}[{1}], {0}[{1} + 1], ({2} - {3}[{1}]) * (1.0 / ({3}[{1} + 1] - {3}[{1}]) ))'.format(ys_var, index_var, fac_var, facs_var)
+
 def parse_vector(node, socket):
     global particle_info
     global sample_bump
@@ -571,8 +598,6 @@ def parse_vector(node, socket):
         return 'pow({0}, vec3({1}))'.format(out_col, gamma)
 
     elif node.type == 'HUE_SAT':
-        curshader.add_function(c_functions.str_rgb_to_hsv)
-        curshader.add_function(c_functions.str_hsv_to_rgb)
         curshader.add_function(c_functions.str_hue_sat)
         hue = parse_value_input(node.inputs[0])
         sat = parse_value_input(node.inputs[1])
@@ -636,10 +661,6 @@ def parse_vector(node, socket):
         else:
             return out_col
 
-    elif node.type == 'CURVE_RGB':
-        # Pass throuh
-        return parse_vector_input(node.inputs[1])
-
     elif node.type == 'BLACKBODY':
         # Pass constant
         return to_vec3([0.84, 0.38, 0.0])
@@ -675,6 +696,25 @@ def parse_vector(node, socket):
             # Mix color
             # float f = (pos - start) * (1.0 / (finish - start))
             return 'mix({0}[{1}], {0}[{1} + 1], ({2} - {3}[{1}]) * (1.0 / ({3}[{1} + 1] - {3}[{1}]) ))'.format(cols_var, index_var, fac_var, facs_var)
+
+    elif node.type == 'CURVE_VEC': # Vector Curves
+        fac = parse_value_input(node.inputs[0])
+        vec = parse_vector_input(node.inputs[1])
+        curves = node.mapping.curves
+        name = node_name(node.name)
+        # mapping.curves[0].points[0].handle_type # bezier curve
+        return '(vec3({0}, {1}, {2}) * {3})'.format(\
+            vector_curve(name + '0', vec + '.x', curves[0].points), vector_curve(name + '1', vec + '.y', curves[1].points), vector_curve(name + '2', vec + '.z', curves[2].points), fac)
+
+    elif node.type == 'CURVE_RGB': # RGB Curves
+        fac = parse_value_input(node.inputs[0])
+        vec = parse_vector_input(node.inputs[1])
+        curves = node.mapping.curves
+        name = node_name(node.name)
+        # mapping.curves[0].points[0].handle_type
+        return '(sqrt(vec3({0}, {1}, {2}) * vec3({4}, {5}, {6})) * {3})'.format(\
+            vector_curve(name + '0', vec + '.x', curves[0].points), vector_curve(name + '1', vec + '.y', curves[1].points), vector_curve(name + '2', vec + '.z', curves[2].points), fac,\
+            vector_curve(name + '3a', vec + '.x', curves[3].points), vector_curve(name + '3b', vec + '.y', curves[3].points), vector_curve(name + '3c', vec + '.z', curves[3].points))
 
     elif node.type == 'COMBHSV':
         # Pass constant
@@ -721,10 +761,10 @@ def parse_vector(node, socket):
     elif node.type == 'PARTICLE_INFO':
         if socket == node.outputs[3]: # Location
             particle_info['location'] = True
-            return 'p_location' if mat_get_material().arm_particle == 'gpu' else 'vec3(0.0)'
+            return 'p_location' if arm.utils.get_rp().arm_particles == 'GPU' else 'vec3(0.0)'
         elif socket == node.outputs[5]: # Velocity
             particle_info['velocity'] = True
-            return 'p_velocity' if mat_get_material().arm_particle == 'gpu' else 'vec3(0.0)'
+            return 'p_velocity' if arm.utils.get_rp().arm_particles == 'GPU' else 'vec3(0.0)'
         elif socket == node.outputs[6]: # Angular Velocity
             particle_info['angular_velocity'] = True
             return 'vec3(0.0)'
@@ -832,11 +872,6 @@ def parse_vector(node, socket):
             # Color
             parse_normal_map_color_input(node.inputs[1], strength)
             return None
-
-    elif node.type == 'CURVE_VEC':
-        # fac = parse_value_input(node.inputs[0])
-        # Pass throuh
-        return parse_vector_input(node.inputs[1])
 
     elif node.type == 'VECT_TRANSFORM':
         #type = node.vector_type
@@ -1022,13 +1057,13 @@ def parse_value(node, socket):
     elif node.type == 'PARTICLE_INFO':
         if socket == node.outputs[0]: # Index
             particle_info['index'] = True
-            return 'p_index' if mat_get_material().arm_particle == 'gpu' else '0.0'
+            return 'p_index' if arm.utils.get_rp().arm_particles == 'GPU' else '0.0'
         elif socket == node.outputs[1]: # Age
             particle_info['age'] = True
-            return 'p_age' if mat_get_material().arm_particle == 'gpu' else '0.0'
+            return 'p_age' if arm.utils.get_rp().arm_particles == 'GPU' else '0.0'
         elif socket == node.outputs[2]: # Lifetime
             particle_info['lifetime'] = True
-            return 'p_lifetime' if mat_get_material().arm_particle == 'gpu' else '0.0'
+            return 'p_lifetime' if arm.utils.get_rp().arm_particles == 'GPU' else '0.0'
         elif socket == node.outputs[4]: # Size
             particle_info['size'] = True
             return '1.0'
@@ -1282,10 +1317,20 @@ def res_var_name(node, socket):
     return node_name(node.name) + '_' + safesrc(socket.name) + '_res'
 
 def write_result(l):
+    global parsed
+    global parsed_wt
     res_var = res_var_name(l.from_node, l.from_socket)
-    st = l.from_socket.type
+    # Texture reads are processed first
+    if res_var + '_wt' in parsed_wt:
+        return res_var + '_wt'
+    if curshader.write_textures > 0:
+        res_var += '_wt'
+    # Unparsed node
     if res_var not in parsed:
         parsed[res_var] = True
+        if curshader.write_textures > 0:
+            parsed_wt[res_var] = True
+        st = l.from_socket.type
         if st == 'RGB' or st == 'RGBA' or st == 'VECTOR':
             res = parse_vector(l.from_node, l.from_socket)
             if res == None:

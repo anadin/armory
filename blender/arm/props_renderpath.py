@@ -50,7 +50,7 @@ def update_preset(self, context):
         rpdat.rp_overlays_state = 'Auto'
         rpdat.rp_decals_state = 'Auto'
         rpdat.rp_sss_state = 'Auto'
-        rpdat.rp_blending_state = 'Off'
+        rpdat.rp_blending_state = 'Auto'
         rpdat.rp_hdr = True
         rpdat.rp_background = 'World'
         rpdat.rp_stereo = False
@@ -81,7 +81,7 @@ def update_preset(self, context):
         rpdat.rp_overlays_state = 'Auto'
         rpdat.rp_decals_state = 'Auto'
         rpdat.rp_sss_state = 'Auto'
-        rpdat.rp_blending_state = 'Off'
+        rpdat.rp_blending_state = 'Auto'
         rpdat.rp_hdr = True
         rpdat.rp_background = 'World'
         rpdat.rp_stereo = False
@@ -111,7 +111,7 @@ def update_preset(self, context):
         rpdat.rp_overlays_state = 'Auto'
         rpdat.rp_decals_state = 'Auto'
         rpdat.rp_sss_state = 'Auto'
-        rpdat.rp_blending_state = 'Off'
+        rpdat.rp_blending_state = 'Auto'
         rpdat.rp_hdr = True
         rpdat.rp_background = 'World'
         rpdat.rp_stereo = False
@@ -209,7 +209,7 @@ def update_preset(self, context):
         rpdat.rp_overlays_state = 'Auto'
         rpdat.rp_decals_state = 'Auto'
         rpdat.rp_sss_state = 'Auto'
-        rpdat.rp_blending_state = 'Off'
+        rpdat.rp_blending_state = 'Auto'
         rpdat.rp_hdr = True
         rpdat.rp_background = 'World'
         rpdat.rp_stereo = False
@@ -309,6 +309,15 @@ def update_overlays_state(self, context):
     elif self.rp_overlays_state == 'Off':
         self.rp_overlays = False
     else: # Auto - updates rp at build time if x-ray mat is used
+        return
+    update_renderpath(self, context)
+
+def update_blending_state(self, context):
+    if self.rp_blending_state == 'On':
+        self.rp_blending = True
+    elif self.rp_blending_state == 'Off':
+        self.rp_blending = False
+    else: # Auto - updates rp at build time if blending mat is used
         return
     update_renderpath(self, context)
 
@@ -426,10 +435,12 @@ class ArmRPListItem(bpy.types.PropertyGroup):
                ('Off', 'Off', 'Off'),
                ('Auto', 'Auto', 'Auto')],
         name="SSS", description="Sub-surface scattering pass", default='Auto', update=update_sss_state)
+    rp_blending = BoolProperty(name="Blending", description="Current render-path state", default=False)
     rp_blending_state = EnumProperty(
         items=[('On', 'On', 'On'),
-               ('Off', 'Off', 'Off')],
-        name="Blending", description="Additive blending pass", default='Off', update=update_renderpath)
+               ('Off', 'Off', 'Off'),
+               ('Auto', 'Auto', 'Auto')],
+        name="Blending", description="Blending pass", default='Auto', update=update_blending_state)
     rp_stereo = BoolProperty(name="Stereo", description="Stereo rendering", default=False, update=update_renderpath)
     rp_greasepencil = BoolProperty(name="Grease Pencil", description="Render Grease Pencil data", default=False, update=update_renderpath)
     rp_ocean = BoolProperty(name="Ocean", description="Ocean pass", default=False, update=update_renderpath)
@@ -600,7 +611,6 @@ class ArmRPListItem(bpy.types.PropertyGroup):
     arm_vignette = BoolProperty(name="Vignette", default=False, update=assets.invalidate_shader_cache)
     arm_lensflare = BoolProperty(name="Lens Flare", default=False, update=assets.invalidate_shader_cache)
     arm_lut_texture = StringProperty(name="LUT Texture", description="Color Grading", default="", update=assets.invalidate_shader_cache)
-    # Skin
     arm_skin = EnumProperty(
         items=[('GPU (Dual-Quat)', 'GPU (Dual-Quat)', 'GPU (Dual-Quat)'),
                ('GPU (Matrix)', 'GPU (Matrix)', 'GPU (Matrix)'),
@@ -609,6 +619,11 @@ class ArmRPListItem(bpy.types.PropertyGroup):
         name='Skinning', description='Skinning method', default='GPU (Dual-Quat)', update=assets.invalidate_shader_cache)
     arm_skin_max_bones_auto = BoolProperty(name="Auto Bones", description="Calculate amount of maximum bones based on armatures", default=True, update=assets.invalidate_compiled_data)
     arm_skin_max_bones = IntProperty(name="Max Bones", default=50, min=1, max=3000, update=assets.invalidate_shader_cache)
+    arm_particles = EnumProperty(
+        items=[('GPU', 'GPU', 'GPU'),
+               ('CPU', 'CPU', 'CPU'),
+               ('Off', 'Off', 'Off')],
+        name='Particles', description='Simulation method', default='GPU', update=assets.invalidate_shader_cache)
     # Material override flags
     arm_culling = BoolProperty(name="Culling", default=True)
     arm_two_sided_area_lamp = BoolProperty(name="Two-Sided Area Lamps", description="Emit light from both faces of area lamp", default=False, update=assets.invalidate_shader_cache)

@@ -102,11 +102,15 @@ def bundled_sdk_path():
         # /blender.exe
         return bpy.app.binary_path.replace('\\', '/').rsplit('/', 1)[0] + '/armsdk/'
 
+# Passed by load_post handler when armsdk is found in project folder
+use_local_sdk = False
 def get_sdk_path():
     user_preferences = bpy.context.user_preferences
     addon_prefs = user_preferences.addons["armory"].preferences
     p = bundled_sdk_path()
-    if os.path.exists(p) and addon_prefs.sdk_bundled:
+    if use_local_sdk:
+        return get_fp() + '/armsdk/'
+    elif os.path.exists(p) and addon_prefs.sdk_bundled:
         return p
     else:
         return addon_prefs.sdk_path
@@ -155,6 +159,12 @@ def get_legacy_shaders():
     user_preferences = bpy.context.user_preferences
     addon_prefs = user_preferences.addons['armory'].preferences
     return False if not hasattr(addon_prefs, 'legacy_shaders') else addon_prefs.legacy_shaders
+
+def get_relative_paths():
+    # Convert absolute paths to relative
+    user_preferences = bpy.context.user_preferences
+    addon_prefs = user_preferences.addons['armory'].preferences
+    return False if not hasattr(addon_prefs, 'relative_paths') else addon_prefs.relative_paths
 
 def get_node_path():
     if get_os() == 'win':
@@ -613,14 +623,19 @@ def target_to_gapi(arm_project_target):
     else:
         return 'arm_gapi_' + arm_project_target
 
-def check_default_rp():
+def check_default_props():
     wrd = bpy.data.worlds['Arm']
     if len(wrd.arm_rplist) == 0:
         wrd.arm_rplist.add()
         wrd.arm_rplist_index = 0
 
-def register():
+    if wrd.arm_project_name == '':
+        # Take blend file name
+        wrd.arm_project_name = arm.utils.blend_name()
+
+def register(local_sdk=False):
     global v8_found
+    global use_local_sdk
     try:
         engine = bpy.context.scene.render.engine
         bpy.context.scene.render.engine = 'ARMORY'
@@ -628,6 +643,7 @@ def register():
         v8_found = True
     except:
         pass
+    use_local_sdk = local_sdk
 
 def unregister():
     pass

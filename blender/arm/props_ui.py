@@ -92,7 +92,6 @@ class ParticlesPropsPanel(bpy.types.Panel):
             return
 
         layout.prop(obj.settings, 'arm_loop')
-        layout.prop(obj.settings, 'arm_gpu_sim')
         layout.prop(obj.settings, 'arm_count_mult')
 
 class PhysicsPropsPanel(bpy.types.Panel):
@@ -267,15 +266,11 @@ class MaterialPropsPanel(bpy.types.Panel):
 
         row = layout.row()
         col = row.column()
-        col.label('Particle')
-        col.prop(mat, 'arm_particle', text="")
-        colb = col.column()
-        colb.enabled = mat.arm_particle == 'gpu'
-        colb.prop(mat, 'arm_particle_fade')
+        col.prop(mat, 'arm_particle_fade')
+        col.prop(mat, 'arm_tilesheet_mat')
         col = row.column()
         col.label('Billboard')
         col.prop(mat, 'arm_billboard', text="")
-        col.prop(mat, 'arm_tilesheet_mat')
 
         layout.prop(mat, 'arm_blending')
         col = layout.column()
@@ -505,7 +500,7 @@ class ArmoryPlayButton(bpy.types.Operator):
         if not arm.utils.check_engine(self):
             return {"CANCELLED"}
 
-        arm.utils.check_default_rp()
+        arm.utils.check_default_props()
 
         assets.invalidate_enabled = False
         make.play(is_viewport=False)
@@ -543,7 +538,7 @@ class ArmoryBuildProjectButton(bpy.types.Operator):
 
         arm.utils.check_projectpath(self)
 
-        arm.utils.check_default_rp()
+        arm.utils.check_default_props()
 
         wrd = bpy.data.worlds['Arm']
         item = wrd.arm_exporterlist[wrd.arm_exporterlist_index]
@@ -582,7 +577,7 @@ class ArmoryPublishProjectButton(bpy.types.Operator):
 
         arm.utils.check_projectpath(self)
 
-        arm.utils.check_default_rp()
+        arm.utils.check_default_props()
 
         wrd = bpy.data.worlds['Arm']
         item = wrd.arm_exporterlist[wrd.arm_exporterlist_index]
@@ -709,10 +704,10 @@ class ArmRenderPathPanel(bpy.types.Panel):
         box = layout.box().column()
         row = box.row()
         row.prop(rpdat, "rp_renderer", expand=True)
-        row = box.row()
-        row.enabled = rpdat.rp_renderer == 'Forward'
-        row.prop(rpdat, 'rp_depthprepass')
-        box.prop(rpdat, "arm_material_model")
+        col = box.column()
+        col.enabled = rpdat.rp_renderer == 'Forward'
+        col.prop(rpdat, 'rp_depthprepass')
+        col.prop(rpdat, "arm_material_model")
         box.prop(rpdat, "rp_translucency_state")
         box.prop(rpdat, "rp_overlays_state")
         box.prop(rpdat, "rp_decals_state")
@@ -739,6 +734,7 @@ class ArmRenderPathPanel(bpy.types.Panel):
             columnb.prop(rpdat, 'arm_tess_shadows_inner')
             columnb.prop(rpdat, 'arm_tess_shadows_outer')  
 
+        box.prop(rpdat, 'arm_particles')
         box.prop(rpdat, 'arm_skin')
         row = box.row()
         row.enabled = rpdat.arm_skin.startswith('GPU')
@@ -811,7 +807,7 @@ class ArmRenderPathPanel(bpy.types.Panel):
         row.alignment = 'EXPAND'
         row.prop(rpdat, 'arm_voxelgi_step')
         row.prop(rpdat, 'arm_voxelgi_range')
-        col.prop(rpdat, 'arm_voxelgi_offset');
+        col.prop(rpdat, 'arm_voxelgi_offset')
 
         layout.label('World')
         box = layout.box().column()

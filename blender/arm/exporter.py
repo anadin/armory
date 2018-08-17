@@ -1196,7 +1196,7 @@ class ArmoryExporter:
 
             # Take highest weights
             bone_values.sort()
-            bone_values.reverse();
+            bone_values.reverse()
 
             if bone_count > 4: # Four bones max
                 bone_count = 4
@@ -1570,7 +1570,7 @@ class ArmoryExporter:
         o = {}
         o['name'] = oid
         mesh = objectRef[0]
-        structFlag = False;
+        structFlag = False
 
         # Save the morph state if necessary
         activeShapeKeyIndex = bobject.active_shape_key_index
@@ -1659,18 +1659,18 @@ class ArmoryExporter:
                 i = 0
                 while i < len(positions):
                     if positions[i] > aabb_max[0]:
-                        aabb_max[0] = positions[i];
+                        aabb_max[0] = positions[i]
                     if positions[i + 1] > aabb_max[1]:
-                        aabb_max[1] = positions[i + 1];
+                        aabb_max[1] = positions[i + 1]
                     if positions[i + 2] > aabb_max[2]:
-                        aabb_max[2] = positions[i + 2];
+                        aabb_max[2] = positions[i + 2]
                     if positions[i] < aabb_min[0]:
-                        aabb_min[0] = positions[i];
+                        aabb_min[0] = positions[i]
                     if positions[i + 1] < aabb_min[1]:
-                        aabb_min[1] = positions[i + 1];
+                        aabb_min[1] = positions[i + 1]
                     if positions[i + 2] < aabb_min[2]:
-                        aabb_min[2] = positions[i + 2];
-                    i += stride;
+                        aabb_min[2] = positions[i + 2]
+                    i += stride
                 if hasattr(bobject.data, 'arm_aabb'):
                     bobject.data.arm_aabb = [abs(aabb_min[0]) + abs(aabb_max[0]), abs(aabb_min[1]) + abs(aabb_max[1]), abs(aabb_min[2]) + abs(aabb_max[2])]
                 break
@@ -1807,7 +1807,7 @@ class ArmoryExporter:
         o['fov'] = 2.0 * math.atan(1.0 / b)
         if with_planes:
             o['near_plane'] = (d * (1.0 - k)) / (2.0 * k)
-            o['far_plane'] = k * o['near_plane'];
+            o['far_plane'] = k * o['near_plane']
 
     def export_camera(self, objectRef):
         o = {}
@@ -1950,6 +1950,7 @@ class ArmoryExporter:
 
         transluc_used = False
         overlays_used = False
+        blending_used = False
         decals_used = False
         # sss_used = False
         for material in self.materialArray:
@@ -1991,6 +1992,8 @@ class ArmoryExporter:
                 transluc_used = True
             if 'overlay' in rpasses:
                 overlays_used = True
+            if 'mesh' in rpasses and material.arm_blending:
+                blending_used = True
             if 'decal' in rpasses:
                 decals_used = True
 
@@ -2044,6 +2047,12 @@ class ArmoryExporter:
         if rpdat.rp_overlays_state == 'Auto' and rpdat.rp_overlays != overlays_used:
             rpdat.rp_overlays = overlays_used
             rebuild_rp = True
+        if rpdat.rp_blending_state == 'On' and rpdat.rp_blending == False: # TODO: deprecated
+            rpdat.rp_blending = True
+            rebuild_rp = True
+        if rpdat.rp_blending_state == 'Auto' and rpdat.rp_blending != blending_used:
+            rpdat.rp_blending = blending_used
+            rebuild_rp = True
         if rpdat.rp_decals_state == 'Auto' and rpdat.rp_decals != decals_used:
             rpdat.rp_decals = decals_used
             rebuild_rp = True
@@ -2067,10 +2076,6 @@ class ArmoryExporter:
                 continue
 
             o['name'] = particleRef[1]["structName"]
-
-            if psettings.arm_gpu_sim:
-                o['gpu_sim'] = True
-
             o['type'] = 0 if psettings.type == 'EMITTER' else 1 # HAIR
             o['loop'] = psettings.arm_loop
             if bpy.app.version >= (2, 80, 1):
@@ -2085,11 +2090,11 @@ class ArmoryExporter:
             o['lifetime_random'] = psettings.lifetime_random
             o['emit_from'] = 1 if psettings.emit_from == 'VOLUME' else 0 # VERT, FACE
             # Velocity
-            # o['normal_factor'] = psettings.normal_factor;
-            # o['tangent_factor'] = psettings.tangent_factor;
-            # o['tangent_phase'] = psettings.tangent_phase;
+            # o['normal_factor'] = psettings.normal_factor
+            # o['tangent_factor'] = psettings.tangent_factor
+            # o['tangent_phase'] = psettings.tangent_phase
             o['object_align_factor'] = [psettings.object_align_factor[0], psettings.object_align_factor[1], psettings.object_align_factor[2]]
-            # o['object_factor'] = psettings.object_factor;
+            # o['object_factor'] = psettings.object_factor
             o['factor_random'] = psettings.factor_random
             # Physics
             o['physics_type'] = 1 if psettings.physics_type == 'NEWTON' else 0
@@ -2151,7 +2156,7 @@ class ArmoryExporter:
             for objectRef in self.speakerArray.items():
                 self.export_speaker(objectRef)
         for objectRef in self.meshArray.items():
-            self.output['mesh_datas'] = [];
+            self.output['mesh_datas'] = []
             self.export_mesh(objectRef, scene)
 
     def execute(self, context, filepath, scene=None):
@@ -2243,6 +2248,25 @@ class ArmoryExporter:
                         mat.name = mat_name
                         matvars.append(mat)
                     slot.material = mat
+        # Particle and non-particle objects can not share material
+        for psys in bpy.data.particles:
+            bo = psys.dupli_object
+            if bo == None or psys.render_type != 'OBJECT':
+                continue
+            for slot in bo.material_slots:
+                if slot.material == None:
+                    continue
+                if slot.material.name.endswith('_armpsys'):
+                    continue
+                matslots.append(slot)
+                mat_name = slot.material.name + '_armpsys'
+                mat = bpy.data.materials.get(mat_name)
+                if mat == None:
+                    mat = slot.material.copy()
+                    mat.name = mat_name
+                    mat.arm_particle_flag = True
+                    matvars.append(mat)
+                slot.material = mat
 
         # Auto-bones
         wrd = bpy.data.worlds['Arm']
@@ -2396,7 +2420,7 @@ class ArmoryExporter:
 
         # Remove created material variants
         for slot in matslots: # Set back to original material
-            orig_mat = bpy.data.materials[slot.material.name[:-len('_armskin')]]
+            orig_mat = bpy.data.materials[slot.material.name[:-8]] # _armskin or _armpsys
             orig_mat.export_uvs = slot.material.export_uvs
             orig_mat.export_vcols = slot.material.export_vcols
             orig_mat.export_tangents = slot.material.export_tangents
