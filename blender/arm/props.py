@@ -80,7 +80,7 @@ def init_properties():
     bpy.types.World.arm_project_package = StringProperty(name="Package", description="Package name for scripts", default="arm", update=invalidate_compiler_cache)
     bpy.types.World.arm_project_version = StringProperty(name="Version", description="Exported project version", default="1.0", update=invalidate_compiler_cache)
     bpy.types.World.arm_project_bundle = StringProperty(name="Bundle", description="Exported project bundle", default="", update=invalidate_compiler_cache)
-    bpy.types.World.arm_project_icon = StringProperty(name="Icon", description="Exported project icon", default="", subtype="FILE_PATH", update=invalidate_compiler_cache)
+    bpy.types.World.arm_project_icon = StringProperty(name="Icon (PNG)", description="Exported project icon, must be a PNG image", default="", subtype="FILE_PATH", update=invalidate_compiler_cache)
     bpy.types.World.arm_project_root = StringProperty(name="Root", description="Set root folder for linked assets", default="", subtype="FILE_PATH", update=invalidate_compiler_cache)
     bpy.types.World.arm_physics = EnumProperty(
         items=[('Disabled', 'Disabled', 'Disabled'),
@@ -151,6 +151,7 @@ def init_properties():
     bpy.types.World.arm_dce = BoolProperty(name="DCE", description="Enable dead code elimination for publish builds", default=True, update=invalidate_compiler_cache)
     bpy.types.World.arm_asset_compression = BoolProperty(name="Asset Compression", description="Enable scene data compression", default=False, update=invalidate_compiler_cache)
     bpy.types.World.arm_write_config = BoolProperty(name="Write Config", description="Allow this project to be configured at runtime via a JSON file", default=False, update=invalidate_compiler_cache)
+    bpy.types.World.arm_compiler_inline = BoolProperty(name="Compiler Inline", description="Favor speed over size", default=True, update=invalidate_compiler_cache)
     bpy.types.World.arm_winmode = EnumProperty(
         items = [('Window', 'Window', 'Window'),
                  ('Fullscreen', 'Fullscreen', 'Fullscreen')],
