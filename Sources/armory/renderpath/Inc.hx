@@ -39,7 +39,7 @@ class Inc {
 		var target = shadowMapName();
 		if (target == "shadowMapCube") {
 			#if kha_webgl
-			// Bind empty map to non-cubemap sampler to keep webgl happy
+			// Bind empty map to non-cubemap sampler
 			path.bindTarget("arm_empty", "shadowMap");
 			#end
 			path.bindTarget("shadowMapCube", "shadowMapCube");
@@ -47,14 +47,14 @@ class Inc {
 		else {
 			#if kha_webgl
 			// Bind empty map to cubemap sampler
-			if (!path.lampIsSun()) path.bindTarget("arm_empty_cube", "shadowMapCube");
+			path.bindTarget("arm_empty_cube", "shadowMapCube");
 			#end
 			path.bindTarget("shadowMap", "shadowMap");
 		}
 	}
 
 	public static function shadowMapName():String {
-		return path.getLamp(path.currentLampIndex).data.raw.shadowmap_cube ? "shadowMapCube" : "shadowMap";
+		return path.getLight(path.currentLightIndex).data.raw.shadowmap_cube ? "shadowMapCube" : "shadowMap";
 	}
 
 	public static function getShadowMap():String {
@@ -62,9 +62,9 @@ class Inc {
 		var rt = path.renderTargets.get(target);
 		// Create shadowmap on the fly
 		if (rt == null) {
-			if (path.getLamp(path.currentLampIndex).data.raw.shadowmap_cube) {
+			if (path.getLight(path.currentLightIndex).data.raw.shadowmap_cube) {
 				// Cubemap size
-				var size = Std.int(path.getLamp(path.currentLampIndex).data.raw.shadowmap_size);
+				var size = Std.int(path.getLight(path.currentLightIndex).data.raw.shadowmap_size);
 				var t = new RenderTargetRaw();
 				t.name = target;
 				t.width = size;
@@ -74,10 +74,10 @@ class Inc {
 				rt = path.createRenderTarget(t);
 			}
 			else { // Non-cube sm
-				var sizew = path.getLamp(path.currentLampIndex).data.raw.shadowmap_size;
+				var sizew = path.getLight(path.currentLightIndex).data.raw.shadowmap_size;
 				var sizeh = sizew;
 				#if arm_csm // Cascades - atlas on x axis
-				sizew = sizeh * iron.object.LampObject.cascadeCount;
+				sizew = sizeh * iron.object.LightObject.cascadeCount;
 				#end
 				var t = new RenderTargetRaw();
 				t.name = target;
@@ -302,16 +302,16 @@ class Inc {
 	public static function computeVoxels(i:Int) {
 		var rts = path.renderTargets;
 		var res = Inc.getVoxelRes();
-		var lamps = iron.Scene.active.lamps;
-		// for (i in 0...lamps.length) {
-			var l = lamps[i];
+		var lights = iron.Scene.active.lights;
+		// for (i in 0...lights.length) {
+			var l = lights[i];
 			// if (!l.visible) continue;
-			// path.currentLampIndex = i;
+			// path.currentLightIndex = i;
 
 			// #if (rp_shadowmap)
 			// {
 				// TODO: merge with direct, drawing shadowmaps twice!
-				// if (path.lampCastShadow()) {
+				// if (path.lightCastShadow()) {
 					// drawShadowMap(l);
 				// }
 			// }
@@ -346,7 +346,7 @@ class Inc {
 			kha.compute.Compute.setFloat2(voxel_cf, vx, vy);
 			// LVP
 			m.setFrom(l.VP);
-			m.multmat2(iron.object.Uniforms.biasMat);
+			m.multmat(iron.object.Uniforms.biasMat);
 			kha.compute.Compute.setMatrix(voxel_cg, m.self);
 			// shadowsBias
 			kha.compute.Compute.setFloat(voxel_ch, l.data.raw.shadows_bias);
@@ -358,7 +358,7 @@ class Inc {
 			var f = l.data.raw.strength;
 			kha.compute.Compute.setFloat3(voxel_cb, l.data.raw.color[0] * f, l.data.raw.color[1] * f, l.data.raw.color[2] * f);
 			// lightType
-			kha.compute.Compute.setInt(voxel_cc, iron.data.LampData.typeToInt(l.data.raw.type));
+			kha.compute.Compute.setInt(voxel_cc, iron.data.LightData.typeToInt(l.data.raw.type));
 			// lightDir
 			var v = l.look();
 			kha.compute.Compute.setFloat3(voxel_cd, v.x, v.y, v.z);
@@ -371,7 +371,7 @@ class Inc {
 
 			kha.compute.Compute.compute(res, res, res);
 		// }
-		// path.currentLampIndex = 0;
+		// path.currentLightIndex = 0;
 	}
 	public static function computeVoxelsEnd() {
 		var rts = path.renderTargets;
@@ -398,9 +398,9 @@ class Inc {
 	#end
 
 	#if (rp_renderer == "Forward")
-	public static function drawShadowMap(l:iron.object.LampObject) {
+	public static function drawShadowMap(l:iron.object.LightObject) {
 		#if (rp_shadowmap)
-		var faces = path.getLamp(path.currentLampIndex).data.raw.shadowmap_cube ? 6 : 1;
+		var faces = path.getLight(path.currentLightIndex).data.raw.shadowmap_cube ? 6 : 1;
 		for (i in 0...faces) {
 			if (faces > 1) path.currentFace = i;
 			path.setTarget(Inc.getShadowMap());
@@ -411,7 +411,7 @@ class Inc {
 		#end
 	}
 	#else
-	public static function drawShadowMap(l:iron.object.LampObject) {
+	public static function drawShadowMap(l:iron.object.LightObject) {
 		#if (rp_shadowmap)
 		var faces = l.data.raw.shadowmap_cube ? 6 : 1;
 		for (j in 0...faces) {
@@ -422,7 +422,7 @@ class Inc {
 		}
 		path.currentFace = -1;
 
-		// One lamp at a time for now, precompute all lamps for tiled
+		// One light at a time for now, precompute all lights for tiled
 		#if rp_soft_shadows
 
 		if (l.raw.type != "point") {
