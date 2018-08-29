@@ -7,8 +7,6 @@ import iron.math.Vec4;
 import iron.math.Rotator;
 import armory.trait.physics.RigidBody;
 
-using iron.math.MathStaticExtension;
-
 class RotateObjectNode extends LogicNode {
 
 	var quat = new Quat();
