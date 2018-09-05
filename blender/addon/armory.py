@@ -76,6 +76,7 @@ class ArmoryAddonPreferences(AddonPreferences):
                  ('default', 'System Default', 'default')],
         name="Code Editor", default='kodestudio', description='Use this editor for editing scripts')
     ui_scale = FloatProperty(name='UI Scale', description='Adjust UI scale for Armory tools', default=1.0, min=1.0, max=4.0)
+    khamake_threads = IntProperty(name='Khamake Threads', description='Allow Khamake to spawn multiple processes for faster builds', default=1, min=1)
     renderdoc_path = StringProperty(name="RenderDoc Path", description="Binary path", subtype="FILE_PATH", update=renderdoc_path_update, default="")
     ffmpeg_path = StringProperty(name="FFMPEG Path", description="Binary path", subtype="FILE_PATH", update=ffmpeg_path_update, default="")
     save_on_build = BoolProperty(name="Save on Build", description="Save .blend", default=False)
@@ -99,14 +100,14 @@ class ArmoryAddonPreferences(AddonPreferences):
         else:
             layout.prop(self, "sdk_path")
         box = layout.box().column()
-        box.label("Armory Updater")
-        box.label("Note: Development version may run unstable!")
+        box.label(text="Armory Updater")
+        box.label(text="Note: Development version may run unstable!")
         row = box.row(align=True)
         row.alignment = 'EXPAND'
         row.operator("arm_addon.install_git", icon="URL")
         row.operator("arm_addon.update", icon="FILE_REFRESH")
         row.operator("arm_addon.restore")
-        box.label("Please restart Blender after successful SDK update.")
+        box.label(text="Please restart Blender after successful SDK update.")
         layout.prop(self, "show_advanced")
         if self.show_advanced:
             box = layout.box().column()
@@ -117,6 +118,7 @@ class ArmoryAddonPreferences(AddonPreferences):
             box.prop(self, "ffmpeg_path")
             box.prop(self, "viewport_controls")
             box.prop(self, "ui_scale")
+            box.prop(self, "khamake_threads")
             box.prop(self, "save_on_build")
             box.prop(self, "legacy_shaders")
             box.prop(self, "relative_paths")

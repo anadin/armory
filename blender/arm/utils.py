@@ -145,6 +145,11 @@ def get_ui_scale():
     addon_prefs = user_preferences.addons['armory'].preferences
     return 1.0 if not hasattr(addon_prefs, 'ui_scale') else addon_prefs.ui_scale
 
+def get_khamake_threads():
+    user_preferences = bpy.context.user_preferences
+    addon_prefs = user_preferences.addons['armory'].preferences
+    return 1 if not hasattr(addon_prefs, 'khamake_threads') else addon_prefs.khamake_threads
+
 def get_save_on_build():
     user_preferences = bpy.context.user_preferences
     addon_prefs = user_preferences.addons['armory'].preferences
@@ -193,13 +198,13 @@ def get_khamake_path():
 def krom_paths(bin_ext=''):
     sdk_path = get_sdk_path()
     if arm.utils.get_os() == 'win':
-        krom_location = sdk_path + '/Krom/win32'
+        krom_location = sdk_path + '/Krom'
         krom_path = krom_location + '/Krom' + bin_ext + '.exe'
     elif arm.utils.get_os() == 'mac':
-        krom_location = sdk_path + '/Krom/macos/Krom.app/Contents/MacOS'
+        krom_location = sdk_path + '/Krom/Krom.app/Contents/MacOS'
         krom_path = krom_location + '/Krom' + bin_ext
     else:
-        krom_location = sdk_path + '/Krom/linux'
+        krom_location = sdk_path + '/Krom'
         krom_path = krom_location + '/Krom' + bin_ext
     return krom_location, krom_path
 

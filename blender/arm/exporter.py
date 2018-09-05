@@ -591,7 +591,7 @@ class ArmoryExporter:
                         if not bone.parent:
                             self.process_bone(bone)
 
-        if bobject.type != 'MESH' or bobject.arm_instanced == False:
+        if bobject.type != 'MESH' or bobject.arm_instanced == 'Off':
             for subbobject in bobject.children:
                 self.process_bobject(subbobject)
 
@@ -1118,7 +1118,7 @@ class ArmoryExporter:
             if not hasattr(o, 'children') and len(bobject.children) > 0:
                 o['children'] = []
 
-        if bobject.type != 'MESH' or bobject.arm_instanced == False:
+        if bobject.type != 'MESH' or bobject.arm_instanced == 'Off':
             for subbobject in bobject.children:
                 self.export_object(subbobject, scene, o)
 
@@ -1557,7 +1557,7 @@ class ArmoryExporter:
                 return
 
         # Check if mesh is using instanced rendering
-        is_instanced, instance_offsets = self.object_process_instancing(bobject, objectRef[1]["objectTable"])
+        instanced_type, instanced_data = self.object_process_instancing(table)
 
         # Mesh users have different modifier stack
         for i in range(1, len(table)):
@@ -1625,7 +1625,7 @@ class ArmoryExporter:
 
         # Apply all modifiers to create a new mesh with tessfaces
         if bpy.app.version >= (2, 80, 1):
-            exportMesh = bobject.to_mesh(bpy.context.depsgraph, apply_modifiers, True, False)
+            exportMesh = bobject.to_mesh(bpy.context.depsgraph, apply_modifiers, calc_tessface=True, calc_undeformed=False)
         else:
             exportMesh = bobject.to_mesh(scene, apply_modifiers, "RENDER", True, False)
 
@@ -1688,8 +1688,9 @@ class ArmoryExporter:
             mesh.update()
 
         # Save offset data for instanced rendering
-        if is_instanced == True:
-            o['instance_offsets'] = instance_offsets
+        if instanced_type > 0:
+            o['instanced_data'] = instanced_data
+            o['instanced_type'] = instanced_type
 
         # Export usage
         if bobject.data.arm_dynamic_usage:
@@ -1819,12 +1820,12 @@ class ArmoryExporter:
         if bpy.app.version >= (2, 80, 1):
             proj = camera.calc_matrix_camera(
                 self.scene.view_layers[0].depsgraph,
-                render.resolution_x,
-                render.resolution_y,
-                render.pixel_aspect_x,
-                render.pixel_aspect_y)
+                x=render.resolution_x,
+                y=render.resolution_y,
+                scale_x=render.pixel_aspect_x,
+                scale_y=render.pixel_aspect_y)
         else:
-                proj = camera.calc_matrix_camera(
+            proj = camera.calc_matrix_camera(
                 render.resolution_x,
                 render.resolution_y,
                 render.pixel_aspect_x,
@@ -2399,7 +2400,7 @@ class ArmoryExporter:
             x = {}
             x['type'] = 'Script'
             x['class_name'] = 'armory.trait.internal.DebugConsole'
-            x['parameters'] = []
+            x['parameters'] = [str(arm.utils.get_ui_scale())]
             self.output['traits'].append(x)
         if len(self.scene.arm_traitlist) > 0:
             if not 'traits' in self.output:
@@ -2431,7 +2432,7 @@ class ArmoryExporter:
 
         # Restore frame
         if scene.frame_current != current_frame:
-            scene.frame_set(current_frame, current_subframe)
+            scene.frame_set(current_frame, subframe=current_subframe)
 
         print('Scene built in ' + str(time.time() - profile_time))
         return {'FINISHED'}
@@ -2466,40 +2467,57 @@ class ArmoryExporter:
                 return True
         return False
 
-    def object_process_instancing(self, bobject, refs):
-        is_instanced = False
-        instance_offsets = None
-        for n in refs:
-            if n.arm_instanced == True:
-                is_instanced = True
-                # Save offset data
-                instance_offsets = [0.0, 0.0, 0.0] # Include parent
-                for sn in n.children:
-                    # Child hidden
-                    if sn.arm_export == False:
+    def object_process_instancing(self, refs):
+        instanced_type = 0
+        instanced_data = None
+        for bobject in refs:
+            inst = bobject.arm_instanced
+            if inst != 'Off':
+                if inst == 'Loc':
+                    instanced_type = 1
+                    instanced_data = [0.0, 0.0, 0.0] # Include parent
+                elif inst == 'Loc + Rot':
+                    instanced_type = 2
+                    instanced_data = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+                elif inst == 'Loc + Scale':
+                    instanced_type = 3
+                    instanced_data = [0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+                elif inst == 'Loc + Rot + Scale':
+                    instanced_type = 4
+                    instanced_data = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+
+                for child in bobject.children:
+                    if child.arm_export == False or child.hide_render:
                         continue
-                    # Do not take parent matrix into account
-                    loc = sn.matrix_local.to_translation()
-                    instance_offsets.append(loc.x)
-                    instance_offsets.append(loc.y)
-                    instance_offsets.append(loc.z)
-                    # m = sn.matrix_local
-                    # instance_offsets.append(m[0][3]) #* m[0][0]) # Scale
-                    # instance_offsets.append(m[1][3]) #* m[1][1])
-                    # instance_offsets.append(m[2][3]) #* m[2][2])
+                    if 'Loc' in inst:
+                        loc = child.matrix_local.to_translation() # Without parent matrix
+                        instanced_data.append(loc.x)
+                        instanced_data.append(loc.y)
+                        instanced_data.append(loc.z)
+                    if 'Rot' in inst:
+                        rot = child.matrix_local.to_euler()
+                        instanced_data.append(rot.x)
+                        instanced_data.append(rot.y)
+                        instanced_data.append(rot.z)
+                    if 'Scale'in inst:
+                        scale = child.matrix_local.to_scale()
+                        instanced_data.append(scale.x)
+                        instanced_data.append(scale.y)
+                        instanced_data.append(scale.z)
                 break
+            
             # Instance render groups with same children?
-            # elif n.dupli_type == 'GROUP' and n.dupli_group != None:
-            #     is_instanced = True
-            #     instance_offsets = []
-            #     for sn in bpy.data.groups[n.dupli_group].objects:
-            #         loc = sn.matrix_local.to_translation()
-            #         instance_offsets.append(loc.x)
-            #         instance_offsets.append(loc.y)
-            #         instance_offsets.append(loc.z)
+            # elif bobject.dupli_type == 'GROUP' and bobject.dupli_group != None:
+            #     instanced_type = 1
+            #     instanced_data = []
+            #     for child in bpy.data.groups[bobject.dupli_group].objects:
+            #         loc = child.matrix_local.to_translation()
+            #         instanced_data.append(loc.x)
+            #         instanced_data.append(loc.y)
+            #         instanced_data.append(loc.z)
             #     break
 
-        return is_instanced, instance_offsets
+        return instanced_type, instanced_data
 
     def preprocess(self):
         wrd = bpy.data.worlds['Arm']
@@ -2699,7 +2717,7 @@ class ArmoryExporter:
                 elif t.type_prop == 'UI Canvas':
                     cpath = arm.utils.get_fp() + '/Bundled/canvas/' + t.canvas_name_prop + '.json'
                     if not os.path.exists(cpath):
-                        log.warn('Canvas "' + t.canvas_name_prop + '" not found, skipping')
+                        log.warn('Scene "' + self.scene.name + '" - Object "' + bobject.name + '" - Referenced canvas "' + t.canvas_name_prop + '" not found, skipping')
                         continue
                     ArmoryExporter.export_ui = True
                     x['type'] = 'Script'
@@ -2748,8 +2766,13 @@ class ArmoryExporter:
                                     for i in reversed(p.vertices): # Flipped normals
                                         f.write(" %d" % (i + 1))
                                     f.write("\n")
-                    else:
+                    else: # Haxe
                         trait_prefix = arm.utils.safestr(bpy.data.worlds['Arm'].arm_project_package) + '.'
+                        hxfile = '/Sources/' + (trait_prefix + t.class_name_prop).replace('.', '/') + '.hx'
+                        if not os.path.exists(arm.utils.get_fp() + hxfile):
+                            # TODO: Halt build here once this check is tested
+                            print('Armory Error: Scene "' + self.scene.name + '" - Object "' + bobject.name + '" : Referenced trait file "' + hxfile + '" not found')
+
                     x['class_name'] = trait_prefix + t.class_name_prop
                     if len(t.arm_traitparamslist) > 0:
                         x['parameters'] = []

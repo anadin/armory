@@ -1,6 +1,6 @@
 #version 450
 
-#include "compiled.glsl"
+#include "compiled.inc"
 #include "std/tonemap.glsl"
 #include "std/math.glsl"
 #ifdef _CDOF
@@ -47,13 +47,7 @@ uniform float time;
 uniform float dynamicScale;
 #endif
 
-#ifdef _CFog
-uniform vec2 cameraProj;
-#endif
-#ifdef _CDOF
-uniform vec2 cameraProj;
-#endif
-#ifdef _CGlare
+#ifdef _CCameraProj
 uniform vec2 cameraProj;
 #endif
 
