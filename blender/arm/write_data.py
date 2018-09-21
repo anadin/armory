@@ -179,13 +179,17 @@ project.addSources('Sources');
 
         # Add compiled assets all at once when threaded
         if threaded:
+            ext = 'arm' if wrd.arm_minimize else 'json'
             assets_path = arm.utils.build_dir() + '/compiled/Assets/**'
-            assets_path_sh = arm.utils.build_dir() + '/compiled/Shaders/*.arm'
+            assets_path_sh = arm.utils.build_dir() + '/compiled/Shaders/*.' + ext
             if rel_path:
                 assets_path = os.path.relpath(assets_path, arm.utils.get_fp()).replace('\\', '/')
                 assets_path_sh = os.path.relpath(assets_path_sh, arm.utils.get_fp()).replace('\\', '/')
-            f.write('project.addAssets("' + assets_path + '");\n')
-            f.write('project.addAssets("' + assets_path_sh + '");\n')
+            dest = ''
+            if use_data_dir:
+                dest += ', destination: "data/{name}"'
+            f.write('project.addAssets("' + assets_path + '", { notinlist: true ' + dest + '});\n')
+            f.write('project.addAssets("' + assets_path_sh + '", { notinlist: true ' + dest + '});\n')
         
         shader_data_references = sorted(list(set(assets.shader_datas)))
         for ref in shader_data_references:
@@ -258,6 +262,9 @@ project.addSources('Sources');
             assets.add_khafile_def('arm_particles_gpu')
         if rpdat.arm_particles != 'Off':
             assets.add_khafile_def('arm_particles')
+
+        if rpdat.rp_draw_order == 'Distance':
+            assets.add_khafile_def('arm_draworder_dist')
 
         if arm.utils.get_viewport_controls() == 'azerty':
             assets.add_khafile_def('arm_azerty')
@@ -449,6 +456,8 @@ def write_compiledglsl(defs):
 #define _COMPILED_GLSL_
 """)
         for d in defs:
+            if d.endswith('var'):
+                continue # Write a shader variant instead
             f.write("#define " + d + "\n")
         f.write("""const float PI = 3.1415926535;
 const float PI2 = PI * 2.0;

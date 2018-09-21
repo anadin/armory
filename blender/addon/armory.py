@@ -76,7 +76,7 @@ class ArmoryAddonPreferences(AddonPreferences):
                  ('default', 'System Default', 'default')],
         name="Code Editor", default='kodestudio', description='Use this editor for editing scripts')
     ui_scale = FloatProperty(name='UI Scale', description='Adjust UI scale for Armory tools', default=1.0, min=1.0, max=4.0)
-    khamake_threads = IntProperty(name='Khamake Threads', description='Allow Khamake to spawn multiple processes for faster builds', default=1, min=1)
+    khamake_threads = IntProperty(name='Khamake Threads', description='Allow Khamake to spawn multiple processes for faster builds', default=4, min=1)
     renderdoc_path = StringProperty(name="RenderDoc Path", description="Binary path", subtype="FILE_PATH", update=renderdoc_path_update, default="")
     ffmpeg_path = StringProperty(name="FFMPEG Path", description="Binary path", subtype="FILE_PATH", update=ffmpeg_path_update, default="")
     save_on_build = BoolProperty(name="Save on Build", description="Save .blend", default=False)
@@ -394,6 +394,8 @@ class ArmAddonUpdateButton(bpy.types.Operator):
         update_repo(done, p, 'lib/zui', 'zui')
         update_repo(done, p, 'lib/armory_tools', 'armory_tools')
         update_repo(done, p, 'lib/iron_format', 'iron_format')
+        # update_repo(done, p, 'Kha', recursive=True)
+        # update_repo(done, p, 'Krom', 'Krom_bin')
         return {"FINISHED"}
 
 class ArmAddonRestoreButton(bpy.types.Operator):
@@ -415,6 +417,8 @@ class ArmAddonRestoreButton(bpy.types.Operator):
         restore_repo(p, 'lib/zui')
         restore_repo(p, 'lib/armory_tools')
         restore_repo(p, 'lib/iron_format')
+        # restore_repo(p, 'Kha')
+        # restore_repo(p, 'Krom')
         self.report({'INFO'}, 'Restored stable version')
         return {"FINISHED"}
 

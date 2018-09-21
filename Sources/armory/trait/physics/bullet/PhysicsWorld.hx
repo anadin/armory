@@ -41,6 +41,7 @@ class PhysicsWorld extends Trait {
 	public var timeScale = 1.0;
 	var timeStep = 1 / 60;
 	var maxSteps = 1;
+	public var solverIterations = 10;
 	public var hitPointWorld = new Vec4();
 	var pairCache:Bool = false;
 
@@ -52,7 +53,7 @@ class PhysicsWorld extends Trait {
 	public static var physTime = 0.0;
 	#end
 
-	public function new(timeScale = 1.0, timeStep = 1 / 60) {
+	public function new(timeScale = 1.0, timeStep = 1 / 60, solverIterations = 10) {
 		super();
 
 		if (nullvec) {
@@ -68,6 +69,7 @@ class PhysicsWorld extends Trait {
 		this.timeScale = timeScale;
 		this.timeStep = timeStep;
 		maxSteps = timeStep < 1 / 60 ? 10 : 1;
+		this.solverIterations = solverIterations;
 
 		// First scene
 		if (active == null) {
@@ -84,7 +86,10 @@ class PhysicsWorld extends Trait {
 		rbMap = new Map();
 		active = this;
 
-		notifyOnLateUpdate(lateUpdate);
+		// Ensure physics are updated first in the lateUpdate list
+		_lateUpdate = [lateUpdate];
+		@:privateAccess iron.App.traitLateUpdates.insert(0, lateUpdate);
+		
 		iron.Scene.active.notifyOnRemove(function() {
 			sceneRemoved = true;
 		});
@@ -234,6 +239,8 @@ class PhysicsWorld extends Trait {
 
 		world.stepSimulation(timeStep, maxSteps, t);
 		updateContacts();
+
+		for (rb in rbMap) @:privateAccess rb.physicsUpdate();
 
 		#if arm_debug
 		physTime = kha.Scheduler.realTime() - startTime;
