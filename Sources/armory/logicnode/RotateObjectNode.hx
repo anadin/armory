@@ -15,7 +15,7 @@ class RotateObjectNode extends LogicNode {
 		super(tree);
 	}
 
-	override function run() {
+	override function run(from:Int) {
 		var object:Object = inputs[1].get();
 		var rot:Rotator = inputs[2].get();
 
@@ -35,6 +35,6 @@ class RotateObjectNode extends LogicNode {
 		if (rigidBody != null) rigidBody.syncTransform();
 		#end
 
-		super.run();
+		runOutput(0);
 	}
 }

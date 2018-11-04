@@ -3,7 +3,7 @@
 #include "compiled.inc"
 #include "std/gbuffer.glsl"
 
-uniform sampler2D planeTex;
+uniform sampler2D probeTex;
 uniform sampler2D gbuffer0;
 uniform sampler2D gbuffer1;
 uniform mat4 probeVP;
@@ -46,5 +46,5 @@ void main() {
 	n = normalize(n);
 
 	float intensity = clamp((1.0 - roughness) * dot(n, proben), 0.0, 1.0);
-	fragColor.rgb = texture(planeTex, tc).rgb * intensity;
+	fragColor.rgb = texture(probeTex, tc).rgb * intensity;
 }

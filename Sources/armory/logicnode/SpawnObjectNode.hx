@@ -12,7 +12,7 @@ class SpawnObjectNode extends LogicNode {
 		super(tree);
 	}
 
-	override function run() {
+	override function run(from:Int) {
 
 		var objectName = "";
 		var objectInput = inputs[1].get();
@@ -20,6 +20,7 @@ class SpawnObjectNode extends LogicNode {
 		else objectName = objectInput.name;
 		if (objectName == "") objectName = tree.object.name;
 		var matrix:Mat4 = inputs[2].get();
+		var spawnChildren:Bool = inputs.length > 3 ? inputs[3].get() : true; // TODO
 
 		iron.Scene.active.spawnObject(objectName, null, function(o:Object) {
 			object = o;
@@ -34,8 +35,8 @@ class SpawnObjectNode extends LogicNode {
 				#end
 			}
 			object.visible = true;
-			runOutputs(0);
-		});
+			runOutput(0);
+		}, spawnChildren);
 	}
 
 	override function get(from:Int):Dynamic {

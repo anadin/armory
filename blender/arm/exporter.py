@@ -988,7 +988,11 @@ class ArmoryExporter:
                     self.probeArray[objref] = {"structName" : objname, "objectTable" : [bobject]}
                 else:
                     self.probeArray[objref]["objectTable"].append(bobject)
-                o['dimensions'] = [1.0, 1.0, bobject.data.influence_distance]
+                dist = bobject.data.influence_distance
+                if objref.type == "PLANAR":
+                    o['dimensions'] = [1.0, 1.0, dist]
+                else: # GRID, CUBEMAP
+                    o['dimensions'] = [dist, dist, dist]
                 o['data_ref'] = self.probeArray[objref]["structName"]
 
             elif type == NodeTypeCamera:
@@ -1752,8 +1756,8 @@ class ArmoryExporter:
             o['light_size'] = objref.shadow_soft_size * 10 # Match to Cycles
         gapi = arm.utils.get_gapi()
         mobile_mat = rpdat.arm_material_model == 'Mobile' or rpdat.arm_material_model == 'Solid'
-        if objtype == 'POINT' and not mobile_mat:
-            o['fov'] = 1.5708 # 90 deg
+        if objtype == 'POINT' and not mobile_mat and objref.arm_shadows_cubemap:
+            o['fov'] = 1.5708 # pi/2
             o['shadowmap_cube'] = True
             o['shadows_bias'] *= 2.0
 
@@ -2653,6 +2657,7 @@ class ArmoryExporter:
                 x['parameters'].append(deact_params)
             else:
                 x['parameters'].append('null')
+            x['parameters'].append(str(bobject.arm_rb_ccd).lower())
             o['traits'].append(x)
 
         # Phys traits
@@ -2775,7 +2780,7 @@ class ArmoryExporter:
                             assets.add(nav_filepath)
                             # TODO: Implement cache
                             #if os.path.isfile(nav_filepath) == False:
-                            override = {'selected_objects': [bobject]}
+                            # override = {'selected_objects': [bobject]}
                             # bobject.scale.y *= -1
                             # mesh = obj.data
                             # for face in mesh.faces:

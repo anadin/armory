@@ -100,6 +100,7 @@ class PhysicsPropsPanel(bpy.types.Panel):
             layout.prop(obj, 'arm_rb_trigger')
             layout.prop(obj, 'arm_rb_terrain')
             layout.prop(obj, 'arm_rb_force_deactivation')
+            layout.prop(obj, 'arm_rb_ccd')
 
         if obj.soft_body != None:
             layout.prop(obj, 'arm_soft_body_margin')
@@ -135,6 +136,8 @@ class DataPropsPanel(bpy.types.Panel):
             col = row.column()
             col.prop(obj.data, 'arm_fov')
             col.prop(obj.data, 'arm_shadows_bias')
+            if obj.data.type == 'POINT':
+                layout.prop(obj.data, 'arm_shadows_cubemap')
             layout.prop(wrd, 'arm_light_texture')
             layout.prop(wrd, 'arm_light_ies_texture')
             layout.prop(wrd, 'arm_light_clouds_texture')
@@ -447,16 +450,19 @@ class ArmoryGenerateNavmeshButton(bpy.types.Operator):
 
         # TODO: build tilecache here
 
-    # Navmesh trait
+        # Navmesh trait
         obj.arm_traitlist.add()
         obj.arm_traitlist[-1].type_prop = 'Bundled Script'
         obj.arm_traitlist[-1].class_name_prop = 'NavMesh'
 
         # For visualization
-        bpy.ops.mesh.navmesh_make('EXEC_DEFAULT')
-        obj = context.active_object
-        obj.hide_render = True
-        obj.arm_export = False
+        if bpy.app.version >= (2, 80, 1):
+            pass # TODO
+        else:
+            bpy.ops.mesh.navmesh_make('EXEC_DEFAULT')
+            obj = context.active_object
+            obj.hide_render = True
+            obj.arm_export = False
 
         return{'FINISHED'}
 
